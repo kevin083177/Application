@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.io 完整測試 (Host + Client)</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background: #f0f2f5; }
+        .container { max-width: 600px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        #homeView, #lobbyView { display: none; }
+        #log {
+            background-color: #282c34; color: #abb2bf;
+            padding: 10px; height: 250px; overflow-y: scroll;
+            margin-top: 20px; border-radius: 5px; font-family: monospace;
+            white-space: pre-wrap; font-size: 0.9em;
+        }
+        input { font-size: 1.1em; padding: 8px; width: calc(100% - 100px); }
+        button { font-size: 1.1em; padding: 8px 12px; margin-left: 5px; cursor: pointer; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #007bff; }
+        .event { color: #d19a66; }
+        #lobbyDetails { background: #eee; padding: 15px; border-radius: 5px; }
+        #lobbyDetails h3 { margin-top: 0; }
+        #playerList li { font-family: monospace; font-size: 0.9em; }
+        #btnLeave, #btnStart { background-color: #dc3545; color: white; border: none; }
+        #btnStart { background-color: #28a745; }
+    </style>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Socket.io測試</h1>
+        <p>狀態: <b id="status">尚未連線</b> (My Socket ID: <span id="myId">N/A</span>)</p>
+        <hr>
+
+        <div id="homeView">
+            <div>
+                <button id="btnCreate">建立一個新房間</button>
+            </div>
+            <div style="margin-top: 15px;">
+                <input type="text" id="inputCode" placeholder="輸入房間號碼...">
+                <button id="btnJoin">加入房間</button>
+            </div>
+        </div>
+
+        <div id="lobbyView">
+            <h2>房間大廳</h2>
+            <div id="lobbyDetails">
+                <h3>房號: <b id="roomCode" class="info">...</b></h3>
+                <p><b>房主 (Host):</b> <span id="hostId">...</span></p>
+                <b>玩家列表 (<span id="playerCount">0</span>):</b>
+                <ul id="playerList">
+                    </ul>
+            </div>
+            <div style="margin-top: 20px;">
+                <button id="btnStart">開始遊戲</button>
+                <button id="btnLeave">離開房間</button>
+            </div>
+        </div>
+
+        <h3>伺服器日誌 (Log):</h3>
+        <pre id="log"></pre>
+    </div>
+
+    <script>
+        const SERVER_URL = "http://localhost:8000";
+        
+        let socket;
+        let mySocketId = null;
+        let currentRoom = null;
+
+        const statusEl = document.getElementById('status');
+        const myIdEl = document.getElementById('myId');
+        const logEl = document.getElementById('log');
+        const homeView = document.getElementById('homeView');
+        const lobbyView = document.getElementById('lobbyView');
+        
+        const btnCreate = document.getElementById('btnCreate');
+        const btnJoin = document.getElementById('btnJoin');
+        const inputCode = document.getElementById('inputCode');
+
+        const roomCodeEl = document.getElementById('roomCode');
+        const hostIdEl = document.getElementById('hostId');
+        const playerCountEl = document.getElementById('playerCount');
+        const playerListEl = document.getElementById('playerList');
+        const btnStart = document.getElementById('btnStart');
+        const btnLeave = document.getElementById('btnLeave');
+
+        function logEvent(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            logEl.innerHTML += `[${time}] <span class="${type}">${message}</span>\n\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function showView(viewName) {
+            homeView.style.display = 'none';
+            lobbyView.style.display = 'none';
+            if (viewName === 'home') homeView.style.display = 'block';
+            if (viewName === 'lobby') lobbyView.style.display = 'block';
+        }
+        
+        function updateLobby(room) {
+            currentRoom = room;
+            
+            roomCodeEl.innerText = room.code;
+            hostIdEl.innerText = room.hostId;
+            playerCountEl.innerText = room.players.length;
+            
+            playerListEl.innerHTML = '';
+            if (room.hostId === mySocketId) {
+                hostIdEl.innerText += ' (這是我)';
+                hostIdEl.className = 'success';
+            }
+            
+            room.players.forEach(playerId => {
+                const li = document.createElement('li');
+                li.innerText = playerId;
+                if (playerId === mySocketId) {
+                    li.innerText += ' (這是我)';
+                    li.className = 'success';
+                }
+                playerListEl.appendChild(li);
+            });
+
+            btnStart.style.display = (room.hostId === mySocketId) ? 'inline-block' : 'none';
+            
+            showView('lobby');
+        }
+
+        function connectSocket() {
+            if (socket) {
+                socket.disconnect();
+            }
+            
+            socket = io(SERVER_URL);
+
+            socket.on('connect', () => {
+                mySocketId = socket.id;
+                statusEl.textContent = '已連線';
+                statusEl.className = 'success';
+                myIdEl.innerText = mySocketId;
+                logEvent(`連線成功！ ID: ${socket.id}`, 'success');
+                showView('home');
+            });
+
+            socket.on('disconnect', () => {
+                statusEl.textContent = '已斷線';
+                statusEl.className = 'error';
+                myIdEl.innerText = 'N/A';
+                logEvent('已斷開連線', 'error');
+                showView('home');
+                currentRoom = null;
+            });
+
+            socket.on('room:created', (room) => {
+                logEvent(`房間已建立！\n${JSON.stringify(room, null, 2)}`, 'success');
+                updateLobby(room);
+            });
+
+            socket.on('room:joined', (room) => {
+                logEvent(`成功加入房間！\n${JSON.stringify(room, null, 2)}`, 'success');
+                updateLobby(room);
+            });
+
+            socket.on('player:joined', (data) => {
+                logEvent(`玩家 ${data.playerId} 加入了`, 'event');
+                if (currentRoom) {
+                    currentRoom.players = data.players;
+                    updateLobby(currentRoom);
+                }
+            });
+            
+            socket.on('player:left', (data) => {
+                logEvent(`玩家 ${data.playerId} 離開了`, 'event');
+                if (currentRoom) {
+                    currentRoom.players = currentRoom.players.filter(p => p !== data.playerId);
+                    updateLobby(currentRoom);
+                }
+            });
+
+            socket.on('room:closed', (data) => {
+                logEvent(`${data.message}`, 'error');
+                alert('房主已離開，房間已解散');
+                showView('home');
+                currentRoom = null;
+            });
+
+            socket.on('game:started', (data) => {
+                logEvent(`遊戲已開始！`, 'success');
+                alert('遊戲已開始！');
+            });
+
+            socket.on('room:error', (data) => {
+                logEvent(`錯誤！\n${JSON.stringify(data, null, 2)}`, 'error');
+                alert(`錯誤: ${data.message}`);
+            });
+        }
+
+
+        btnCreate.onclick = () => {
+            logEvent("--> 發送 'room:create'", 'info');
+            socket.emit('room:create');
+        };
+
+        btnJoin.onclick = () => {
+            const code = inputCode.value;
+            if (code) {
+                logEvent(`--> 發送 'room:join' (Code: ${code})`, 'info');
+                socket.emit('room:join', { roomCode: code });
+            } else {
+                alert("請輸入房間號碼！");
+            }
+        };
+
+        btnStart.onclick = () => {
+             logEvent("--> 發送 'game:start'", 'info');
+             socket.emit('game:start');
+        };
+
+        btnLeave.onclick = () => {
+            logEvent("--> 手動離開房間 (斷線)", 'info');
+            socket.disconnect();
+        };
+
+        connectSocket();
+        showView('home');
+
+    </script>
+</body>
+</html>
