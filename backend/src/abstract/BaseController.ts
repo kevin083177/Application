@@ -58,6 +58,11 @@ export abstract class BaseController<T extends Document> {
         return this.sendResponse(res, 404, message || 'Not found', data);
     }
 
+    //  http code 409
+    protected conflict<U>(res: Response, data?: U, message?: string) {
+        return this.sendResponse(res, 409, message || 'Conflict', data);
+    }
+
     // http code 500
     protected internalError<U>(res: Response, data?: U, message?: string) {
         return this.sendResponse(res, 500, message || 'Internal server error', data);

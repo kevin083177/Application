@@ -1,38 +1,66 @@
+import { BaseService } from "../abstract/BaseService";
 import { Room } from "../interfaces/room";
-import * as RoomRepository from "../repository/roomRepository";
+import { RoomRepository } from "../repository/roomRepository";
+import { logger } from "../middlewares/log";
 
-export class roomService {
-    
+export class RoomService extends BaseService<Room> {
+    protected repository: RoomRepository;
+    constructor() {
+        const repository = new RoomRepository();
+        super(repository);
+        this.repository = repository;
+    }
+
+
     public async getRoom(roomCode: string): Promise<Room | null> {
-        return await RoomRepository.getRoom(Number(roomCode));
+        // ✅ 加入防禦性檢查
+        if (!roomCode || typeof roomCode !== 'string') {
+            logger.warn(`[Service] Invalid roomCode provided: ${roomCode}`);
+            return null;
+        }
+
+        const numericCode = Number(roomCode);
+        
+        // 檢查轉換後是否為有效數字
+        if (isNaN(numericCode)) {
+            logger.warn(`[Service] roomCode cannot be converted to number: ${roomCode}`);
+            return null;
+        }
+
+        return await this.repository.getRoom(numericCode);
     }
 
     public async createRoom(hostId: string): Promise<Room> {
-        return await RoomRepository.createRoom(hostId);
+        return await this.repository.createRoom(hostId);
     }
 
     public async deleteRoom(roomCode: string): Promise<boolean> {
-        return await RoomRepository.deleteRoom(Number(roomCode));
+        return await this.repository.deleteRoom(Number(roomCode));
     }
 
     public async isSocketInRoom(socketId: string): Promise<boolean> {
-        const room = await RoomRepository.findRoomBySocketId(socketId);
+        const room = await this.repository.findRoomBySocketId(socketId);
         return !!room;
     }
 
     public async findRoomBySocketId(socketId: string): Promise<Room | null> {
-        return await RoomRepository.findRoomBySocketId(socketId);
+        return await this.repository.findRoomBySocketId(socketId);
     }
 
     public async addPlayer(roomCode: string, playerId: string): Promise<Room | null> {
-        return await RoomRepository.addPlayer(Number(roomCode), playerId);
+        // ✅ 防禦性檢查：確保 roomCode 是有效的數字字串
+        const codeNumber = Number(roomCode);
+        if (isNaN(codeNumber) || !roomCode || roomCode.trim().length === 0) {
+            return null;
+        }
+        return await this.repository.addPlayer(codeNumber, playerId);
     }
-    
+
     public async removePlayer(roomCode: string, playerId: string): Promise<Room | null> {
-        return await RoomRepository.removePlayer(Number(roomCode), playerId);
+        return await this.repository.removePlayer(Number(roomCode), playerId);
     }
 
     public async startGame(roomCode: string): Promise<Room | null> {
-        return await RoomRepository.startGame(Number(roomCode));
+        return await this.repository.startGame(Number(roomCode));
     }
 }

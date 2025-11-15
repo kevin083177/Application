@@ -3,230 +3,283 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Socket.io 完整測試 (Host + Client)</title>
+    <title>Socket.io 測試</title>
     <style>
-        body { font-family: sans-serif; margin: 20px; background: #f0f2f5; }
-        .container { max-width: 600px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        #homeView, #lobbyView { display: none; }
-        #log {
-            background-color: #282c34; color: #abb2bf;
-            padding: 10px; height: 250px; overflow-y: scroll;
-            margin-top: 20px; border-radius: 5px; font-family: monospace;
-            white-space: pre-wrap; font-size: 0.9em;
+        :root {
+            --primary-color: #007bff; --success-color: #28a745; --error-color: #dc3545;
+            --bg-color: #f4f7f9; --fg-color: #ffffff; --text-color: #333;
+            --log-bg: #282c34; --log-text: #abb2bf; --event-color: #d19a66;
         }
-        input { font-size: 1.1em; padding: 8px; width: calc(100% - 100px); }
-        button { font-size: 1.1em; padding: 8px 12px; margin-left: 5px; cursor: pointer; }
-        .success { color: #28a745; }
-        .error { color: #dc3545; }
-        .info { color: #007bff; }
-        .event { color: #d19a66; }
-        #lobbyDetails { background: #eee; padding: 15px; border-radius: 5px; }
-        #lobbyDetails h3 { margin-top: 0; }
-        #playerList li { font-family: monospace; font-size: 0.9em; }
-        #btnLeave, #btnStart { background-color: #dc3545; color: white; border: none; }
-        #btnStart { background-color: #28a745; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background: var(--bg-color); color: var(--text-color); }
+        .container { max-width: 700px; margin: 2rem auto; background: var(--fg-color); padding: 2rem; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+        .view { display: none; }
+        .view.active { display: block; }
+        #log { background-color: var(--log-bg); color: var(--log-text); padding: 15px; height: 300px; overflow-y: scroll; margin-top: 1.5rem; border-radius: 8px; font-family: "Fira Code", "Courier New", monospace; white-space: pre-wrap; font-size: 0.9em; line-height: 1.6; }
+        input[type="text"] { font-size: 1rem; padding: 10px 15px; width: calc(100% - 130px); border: 1px solid #ccc; border-radius: 6px; }
+        button { font-size: 1rem; padding: 10px 15px; margin-left: 10px; cursor: pointer; border: none; border-radius: 6px; font-weight: 500; transition: background-color 0.2s; }
+        button:hover { opacity: 0.9; }
+        .btn-primary { background-color: var(--primary-color); color: white; }
+        .btn-success { background-color: var(--success-color); color: white; }
+        .btn-danger { background-color: var(--error-color); color: white; }
+        .log-success { color: #98c379; } .log-error { color: #e06c75; } .log-info { color: #61afef; } .log-event { color: var(--event-color); } .log-send { color: #c678dd; }
+        #lobby-details { background: #f9f9f9; padding: 1.5rem; border-radius: 8px; border: 1px solid #eee; }
+        #player-list .player-tag { font-size: 0.75em; padding: 2px 6px; border-radius: 4px; margin-left: 8px; color: white; }
+        .tag-host { background-color: var(--primary-color); }
+        .tag-you { background-color: var(--success-color); }
+        .room-code-wrapper { display: flex; align-items: center; }
+        #room-code { font-size: 1.5em; font-weight: bold; color: var(--primary-color); }
+        #btn-copy { font-size: 0.8em; padding: 5px 10px; }
     </style>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 </head>
 <body>
-
     <div class="container">
-        <h1>Socket.io測試</h1>
-        <p>狀態: <b id="status">尚未連線</b> (My Socket ID: <span id="myId">N/A</span>)</p>
+        <h1>Socket.io 測試</h1>
+        <p><b>狀態:</b> <b id="status">尚未連線</b> | <b>My Socket ID:</b> <span id="my-id">N/A</span></p>
         <hr>
 
-        <div id="homeView">
+        <!-- Home View -->
+        <div id="view-home" class="view active">
+            <h3>主選單</h3>
             <div>
-                <button id="btnCreate">建立一個新房間</button>
+                <button id="btn-create" class="btn-primary">建立一個新房間</button>
             </div>
-            <div style="margin-top: 15px;">
-                <input type="text" id="inputCode" placeholder="輸入房間號碼...">
-                <button id="btnJoin">加入房間</button>
-            </div>
-        </div>
-
-        <div id="lobbyView">
-            <h2>房間大廳</h2>
-            <div id="lobbyDetails">
-                <h3>房號: <b id="roomCode" class="info">...</b></h3>
-                <p><b>房主 (Host):</b> <span id="hostId">...</span></p>
-                <b>玩家列表 (<span id="playerCount">0</span>):</b>
-                <ul id="playerList">
-                    </ul>
-            </div>
-            <div style="margin-top: 20px;">
-                <button id="btnStart">開始遊戲</button>
-                <button id="btnLeave">離開房間</button>
+            <div style="margin-top: 1.5rem;">
+                <input type="text" id="input-code" placeholder="輸入 6 位數房間號碼..." pattern="\d{6}" maxlength="6" title="請輸入 6 位數字">
+                <button id="btn-join" class="btn-success">加入房間</button>
             </div>
         </div>
 
-        <h3>伺服器日誌 (Log):</h3>
+        <!-- Lobby View -->
+        <div id="view-lobby" class="view">
+            <h3>房間大廳</h3>
+            <div id="lobby-details">
+                <div class="room-code-wrapper">
+                    <span>房號: <b id="room-code">...</b></span>
+                    <button id="btn-copy" class="btn-primary">複製</button>
+                </div>
+                <p><b>房主 (Host):</b> <span id="host-id">...</span></p>
+                <b>玩家列表 (<span id="player-count">0</span>):</b>
+                <ul id="player-list"></ul>
+            </div>
+            <div style="margin-top: 1.5rem;">
+                <button id="btn-start" class="btn-success">開始遊戲</button>
+                <button id="btn-leave" class="btn-danger">離開房間</button>
+            </div>
+        </div>
+
+        <h3>伺服器日誌:</h3>
         <pre id="log"></pre>
     </div>
 
     <script>
         const SERVER_URL = "http://localhost:8000";
         
+        // --- DOM Elements ---
+        const ui = {
+            status: document.getElementById('status'),
+            myId: document.getElementById('my-id'),
+            log: document.getElementById('log'),
+            views: {
+                home: document.getElementById('view-home'),
+                lobby: document.getElementById('view-lobby'),
+            },
+            home: {
+                btnCreate: document.getElementById('btn-create'),
+                btnJoin: document.getElementById('btn-join'),
+                inputCode: document.getElementById('input-code'),
+            },
+            lobby: {
+                roomCode: document.getElementById('room-code'),
+                btnCopy: document.getElementById('btn-copy'),
+                hostId: document.getElementById('host-id'),
+                playerCount: document.getElementById('player-count'),
+                playerList: document.getElementById('player-list'),
+                btnStart: document.getElementById('btn-start'),
+                btnLeave: document.getElementById('btn-leave'),
+            }
+        };
+
+        // --- State ---
         let socket;
-        let mySocketId = null;
-        let currentRoom = null;
+        let state = {
+            mySocketId: null,
+            currentRoom: null,
+        };
 
-        const statusEl = document.getElementById('status');
-        const myIdEl = document.getElementById('myId');
-        const logEl = document.getElementById('log');
-        const homeView = document.getElementById('homeView');
-        const lobbyView = document.getElementById('lobbyView');
-        
-        const btnCreate = document.getElementById('btnCreate');
-        const btnJoin = document.getElementById('btnJoin');
-        const inputCode = document.getElementById('inputCode');
-
-        const roomCodeEl = document.getElementById('roomCode');
-        const hostIdEl = document.getElementById('hostId');
-        const playerCountEl = document.getElementById('playerCount');
-        const playerListEl = document.getElementById('playerList');
-        const btnStart = document.getElementById('btnStart');
-        const btnLeave = document.getElementById('btnLeave');
-
-        function logEvent(message, type = 'info') {
+        // --- Logger ---
+        function logEvent(message, type = 'info', direction = '') {
             const time = new Date().toLocaleTimeString();
-            logEl.innerHTML += `[${time}] <span class="${type}">${message}</span>\n\n`;
-            logEl.scrollTop = logEl.scrollHeight;
+            const directionArrow = direction === 'send' ? '-->' : (direction === 'recv' ? '<--' : '');
+            ui.log.innerHTML += `[${time}] ${directionArrow} <span class="log-${type}">${message}</span>\n\n`;
+            ui.log.scrollTop = ui.log.scrollHeight;
         }
 
-        function showView(viewName) {
-            homeView.style.display = 'none';
-            lobbyView.style.display = 'none';
-            if (viewName === 'home') homeView.style.display = 'block';
-            if (viewName === 'lobby') lobbyView.style.display = 'block';
-        }
-        
-        function updateLobby(room) {
-            currentRoom = room;
-            
-            roomCodeEl.innerText = room.code;
-            hostIdEl.innerText = room.hostId;
-            playerCountEl.innerText = room.players.length;
-            
-            playerListEl.innerHTML = '';
-            if (room.hostId === mySocketId) {
-                hostIdEl.innerText += ' (這是我)';
-                hostIdEl.className = 'success';
+        // --- UI Update ---
+        function updateUI(viewName) {
+            Object.values(ui.views).forEach(v => v.classList.remove('active'));
+            if (ui.views[viewName]) {
+                ui.views[viewName].classList.add('active');
             }
-            
-            room.players.forEach(playerId => {
-                const li = document.createElement('li');
-                li.innerText = playerId;
-                if (playerId === mySocketId) {
-                    li.innerText += ' (這是我)';
-                    li.className = 'success';
-                }
-                playerListEl.appendChild(li);
-            });
 
-            btnStart.style.display = (room.hostId === mySocketId) ? 'inline-block' : 'none';
-            
-            showView('lobby');
+            if (viewName === 'lobby' && state.currentRoom) {
+                const room = state.currentRoom;
+                ui.lobby.roomCode.innerText = room.code;
+                ui.lobby.hostId.innerText = room.hostId;
+                ui.lobby.playerCount.innerText = room.players.length;
+                
+                ui.lobby.playerList.innerHTML = '';
+                room.players.forEach(playerId => {
+                    const li = document.createElement('li');
+                    li.innerText = playerId;
+                    if (playerId === room.hostId) {
+                        const hostTag = document.createElement('span');
+                        hostTag.className = 'player-tag tag-host';
+                        hostTag.innerText = '房主';
+                        li.appendChild(hostTag);
+                    }
+                    if (playerId === state.mySocketId) {
+                        const youTag = document.createElement('span');
+                        youTag.className = 'player-tag tag-you';
+                        youTag.innerText = '你';
+                        li.appendChild(youTag);
+                    }
+                    ui.lobby.playerList.appendChild(li);
+                });
+
+                ui.lobby.btnStart.style.display = (room.hostId === state.mySocketId) ? 'inline-block' : 'none';
+            }
         }
 
-        function connectSocket() {
-            if (socket) {
-                socket.disconnect();
-            }
-            
-            socket = io(SERVER_URL);
-
+        // --- Socket Logic ---
+        function setupSocketListeners() {
             socket.on('connect', () => {
-                mySocketId = socket.id;
-                statusEl.textContent = '已連線';
-                statusEl.className = 'success';
-                myIdEl.innerText = mySocketId;
+                state.mySocketId = socket.id;
+                ui.status.textContent = '已連線';
+                ui.status.className = 'log-success';
+                ui.myId.innerText = state.mySocketId;
                 logEvent(`連線成功！ ID: ${socket.id}`, 'success');
-                showView('home');
+                updateUI('home');
             });
 
             socket.on('disconnect', () => {
-                statusEl.textContent = '已斷線';
-                statusEl.className = 'error';
-                myIdEl.innerText = 'N/A';
+                ui.status.textContent = '已斷線';
+                ui.status.className = 'log-error';
+                ui.myId.innerText = 'N/A';
                 logEvent('已斷開連線', 'error');
-                showView('home');
-                currentRoom = null;
+                state.currentRoom = null;
+                state.mySocketId = null;
+                updateUI('home');
             });
 
-            socket.on('room:created', (room) => {
-                logEvent(`房間已建立！\n${JSON.stringify(room, null, 2)}`, 'success');
-                updateLobby(room);
-            });
-
-            socket.on('room:joined', (room) => {
-                logEvent(`成功加入房間！\n${JSON.stringify(room, null, 2)}`, 'success');
-                updateLobby(room);
-            });
-
-            socket.on('player:joined', (data) => {
-                logEvent(`玩家 ${data.playerId} 加入了`, 'event');
-                if (currentRoom) {
-                    currentRoom.players = data.players;
-                    updateLobby(currentRoom);
+            // --- Standard Event Handler ---
+            const createHandler = (eventName) => (response) => {
+                try {
+                    logEvent(`[${eventName}] \n${JSON.stringify(response, null, 2)}`, 'event', 'recv');
+                    if (!response.success) {
+                        alert(`錯誤: ${response.message}`);
+                        return;
+                    }
+                    
+                    // Handle specific events based on their name
+                    switch(eventName) {
+                        case 'room:created':
+                        case 'room:joined':
+                            state.currentRoom = response.body;
+                            updateUI('lobby');
+                            break;
+                        case 'player:joined':
+                        case 'player:left':
+                            if (state.currentRoom) {
+                                state.currentRoom.players = response.body.players;
+                                updateUI('lobby');
+                            }
+                            break;
+                        case 'room:closed':
+                            alert(response.message);
+                            state.currentRoom = null;
+                            updateUI('home');
+                            break;
+                        case 'game:started':
+                            alert(response.message);
+                            // You can add logic here to switch to a "game view"
+                            break;
+                    }
+                } catch (e) {
+                    logEvent(`無法解析來自 [${eventName}] 的回應: ${e}`, 'error', 'recv');
                 }
-            });
+            };
+
+            socket.on('room:created', createHandler('room:created'));
+            socket.on('room:joined', createHandler('room:joined'));
+            socket.on('player:joined', createHandler('player:joined'));
+            socket.on('player:left', createHandler('player:left'));
+            socket.on('room:closed', createHandler('room:closed'));
+            socket.on('game:started', createHandler('game:started'));
             
-            socket.on('player:left', (data) => {
-                logEvent(`玩家 ${data.playerId} 離開了`, 'event');
-                if (currentRoom) {
-                    currentRoom.players = currentRoom.players.filter(p => p !== data.playerId);
-                    updateLobby(currentRoom);
-                }
-            });
-
-            socket.on('room:closed', (data) => {
-                logEvent(`${data.message}`, 'error');
-                alert('房主已離開，房間已解散');
-                showView('home');
-                currentRoom = null;
-            });
-
-            socket.on('game:started', (data) => {
-                logEvent(`遊戲已開始！`, 'success');
-                alert('遊戲已開始！');
-            });
-
-            socket.on('room:error', (data) => {
-                logEvent(`錯誤！\n${JSON.stringify(data, null, 2)}`, 'error');
-                alert(`錯誤: ${data.message}`);
+            // Special error handler
+            socket.on('room:error', (error) => {
+                logEvent(`[room:error] \n${JSON.stringify(error, null, 2)}`, 'error', 'recv');
+                alert(`伺服器錯誤: ${error.message}`);
             });
         }
 
+        // --- Event Bindings ---
+        function bindUIEvents() {
+            ui.home.btnCreate.onclick = () => {
+                logEvent("發送 'room:create'", 'send', 'send');
+                socket.emit('room:create');
+            };
 
-        btnCreate.onclick = () => {
-            logEvent("--> 發送 'room:create'", 'info');
-            socket.emit('room:create');
-        };
+            ui.home.btnJoin.onclick = () => {
+                const code = ui.home.inputCode.value.trim();
+                
+                // ✅ 加強驗證：檢查是否為有效的房間號碼
+                if (!code) {
+                    alert("請輸入房間號碼！");
+                    return;
+                }
+                
+                // 檢查是否為 6 位數字
+                if (!/^\d{6}$/.test(code)) {
+                    alert("房間號碼必須是 6 位數字！");
+                    return;
+                }
+                
+                logEvent(`發送 'room:join' (Code: ${code})`, 'send', 'send');
+                socket.emit('room:join', { roomCode: code });  // ✅ 修正：發送物件而非字串
+            };
 
-        btnJoin.onclick = () => {
-            const code = inputCode.value;
-            if (code) {
-                logEvent(`--> 發送 'room:join' (Code: ${code})`, 'info');
-                socket.emit('room:join', { roomCode: code });
-            } else {
-                alert("請輸入房間號碼！");
-            }
-        };
+            ui.lobby.btnStart.onclick = () => {
+                 logEvent("發送 'game:start'", 'send', 'send');
+                 socket.emit('game:start');
+            };
 
-        btnStart.onclick = () => {
-             logEvent("--> 發送 'game:start'", 'info');
-             socket.emit('game:start');
-        };
+            ui.lobby.btnLeave.onclick = () => {
+                logEvent("發送 'room:leave'", 'send', 'send');
+                // ✅ 修正：使用主動離開事件，而不是直接斷線
+                socket.emit('room:leave');
+                state.currentRoom = null;
+                updateUI('home');
+            };
 
-        btnLeave.onclick = () => {
-            logEvent("--> 手動離開房間 (斷線)", 'info');
-            socket.disconnect();
-        };
+            ui.lobby.btnCopy.onclick = () => {
+                navigator.clipboard.writeText(ui.lobby.roomCode.innerText).then(() => {
+                    logEvent('房號已複製到剪貼簿', 'success');
+                });
+            };
+        }
 
-        connectSocket();
-        showView('home');
+        // --- Initialization ---
+        function init() {
+            if (socket) socket.disconnect();
+            socket = io(SERVER_URL);
+            setupSocketListeners();
+            bindUIEvents();
+            updateUI('home');
+        }
 
+        init();
     </script>
 </body>
 </html>
