@@ -1,13 +1,12 @@
 import express from 'express';
 import cors from 'cors';
-import { logger } from './middlewares/log';
-import { registerSocketHandlers } from './sockets/handler';
 import path from 'path';
+import http from 'http';
+import { logger } from './middlewares/log';
 import { MongoDB } from './utils/MongoDB';
+import { registerSocketHandlers } from './sockets/handler';
 
 require('dotenv').config();
-
-const http = require('http');
 const socket = require('socket.io');
 
 const app: express.Application = express();
@@ -28,13 +27,20 @@ app.use(cors({
   "preflightContinue": false,
 }));
 
+// middlewares
 app.use(express.json({limit:'50mb'}));
 app.use(express.urlencoded({ extended: false }))
 
-const io = socket(server)
-
+// socket.io setup
+const io = socket(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 registerSocketHandlers(io);
 
+// routes for testing
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/test.html'));
 });
