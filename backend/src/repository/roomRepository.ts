@@ -147,7 +147,7 @@ export class RoomRepository extends BaseRepository<Room> {
         return await this.model.findOneAndUpdate(
             { code: roomCode, gameStarted: false }, // 確保遊戲未開始
             { $addToSet: { players: playerId } },   // 使用 $addToSet 避免重複加入
-            { new: true }                           // ✅ 修正：返回更新後的文檔
+            { new: true }                           // 返回更新後的文檔
         ).exec();
     }
 
