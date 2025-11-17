@@ -6,16 +6,10 @@ import { SocketHelper } from "../utils/sockets/socketResponse";
 
 export class RoomController {
     protected service: RoomService;
-    private io?: Server;
+    private io: Server;
 
-    constructor() {
+    constructor(io: Server) {
         this.service = new RoomService();
-    }
-
-    /**
-     * 設定 Socket.IO Server (用於廣播)
-     */
-    public setSocketIO(io: Server): void {
         this.io = io;
     }
 
@@ -38,7 +32,7 @@ export class RoomController {
                 code: newRoom.code,
                 hostId: newRoom.hostId,
                 players: newRoom.players,
-                gameStarted: newRoom.gameStarted
+                status: newRoom.status
             }, "房間建立成功");
 
             logger.info(`[Controller] Room ${newRoom.code} created by ${socket.id}`);
@@ -224,7 +218,7 @@ export class RoomController {
             }
 
             // 7. 檢查遊戲是否已開始
-            if (room.gameStarted) {
+            if (room.status !== 'waiting') {
                 return {
                     success: false,
                     message: '遊戲已開始，無法加入',

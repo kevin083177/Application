@@ -2,6 +2,7 @@ import { logger } from "../middlewares/log";
 import { Room } from "../interfaces/room";
 import { RoomModel } from "../models/roomSchema";
 import { BaseRepository } from "../abstract/BaseRepository";
+import { stat } from "fs";
 
 export class RoomRepository extends BaseRepository<Room> {
     constructor() {
@@ -85,13 +86,14 @@ export class RoomRepository extends BaseRepository<Room> {
      */
     public async createRoom(hostId: string): Promise<Room> {
         const roomCode = await this._generateRoomCode();
-
-        const newRoom = await this.create({
+        const room: Partial<Room> = {
             code: roomCode,
             hostId: hostId,
             players: [hostId],
-            gameStarted: false
-        } as Partial<Room>);
+            status: 'waiting',
+            currentScenarioId: null
+        }
+        const newRoom = await this.create(room);
 
         logger.info(`[Repository] Room created with code: ${roomCode} by host: ${hostId}`);
         return newRoom;
@@ -145,7 +147,7 @@ export class RoomRepository extends BaseRepository<Room> {
      */
     public async addPlayer(roomCode: number, playerId: string): Promise<Room | null> {
         return await this.model.findOneAndUpdate(
-            { code: roomCode, gameStarted: false }, // 確保遊戲未開始
+            { code: roomCode, status: 'waiting' }, // 確保遊戲未開始
             { $addToSet: { players: playerId } },   // 使用 $addToSet 避免重複加入
             { new: true }                           // 返回更新後的文檔
         ).exec();
@@ -178,7 +180,7 @@ export class RoomRepository extends BaseRepository<Room> {
     public async startGame(roomCode: number): Promise<Room | null> {
         const updatedRoom = await this.updateByCode(
             roomCode,
-            { gameStarted: true }
+            { status: 'playing' }
         );
 
         if (updatedRoom) {
@@ -207,7 +209,7 @@ export class RoomRepository extends BaseRepository<Room> {
      * @returns {Promise<Room[]>} 進行中的房間列表
      */
     public async getActiveRooms(): Promise<Room[]> {
-        return await this.findAll({ gameStarted: true });
+        return await this.findAll({ status: 'playing' });
     }
 
     /**
@@ -215,7 +217,7 @@ export class RoomRepository extends BaseRepository<Room> {
      * @returns {Promise<Room[]>} 等待中的房間列表
      */
     public async getWaitingRooms(): Promise<Room[]> {
-        return await this.findAll({ gameStarted: false });
+        return await this.findAll({ status: 'waiting' });
     }
 
     /**

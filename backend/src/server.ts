@@ -2,12 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import http from 'http';
-import { Server } from 'socket.io'; // 改用正規 import
-import 'dotenv/config'; // 改用 import 取代 require('dotenv').config()
+import { Server } from 'socket.io';
+import 'dotenv/config';
 
 import { logger } from './middlewares/log';
 import { MongoDB } from './utils/MongoDB';
-import { registerSocketHandlers } from './utils/sockets/socketregister'; // 引入我們等下要建立的註冊檔
+import { registerSocketHandlers } from './utils/sockets/socketRegister';
 
 const app: express.Application = express();
 const server = http.createServer(app);

@@ -1,103 +1,401 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Socket.io 測試</title>
+    <title>Scenario 功能測試</title>
     <style>
         :root {
-            --primary-color: #007bff; --success-color: #28a745; --error-color: #dc3545;
-            --bg-color: #f4f7f9; --fg-color: #ffffff; --text-color: #333;
-            --log-bg: #282c34; --log-text: #abb2bf; --event-color: #d19a66;
+            --primary-color: #007bff;
+            --success-color: #28a745;
+            --error-color: #dc3545;
+            --warning-color: #ffc107;
+            --bg-color: #f4f7f9;
+            --fg-color: #ffffff;
+            --text-color: #333;
+            --log-bg: #282c34;
+            --log-text: #abb2bf;
         }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background: var(--bg-color); color: var(--text-color); }
-        .container { max-width: 700px; margin: 2rem auto; background: var(--fg-color); padding: 2rem; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
-        .view { display: none; }
-        .view.active { display: block; }
-        #log { background-color: var(--log-bg); color: var(--log-text); padding: 15px; height: 300px; overflow-y: scroll; margin-top: 1.5rem; border-radius: 8px; font-family: "Fira Code", "Courier New", monospace; white-space: pre-wrap; font-size: 0.9em; line-height: 1.6; }
-        input[type="text"] { font-size: 1rem; padding: 10px 15px; width: calc(100% - 130px); border: 1px solid #ccc; border-radius: 6px; }
-        button { font-size: 1rem; padding: 10px 15px; margin-left: 10px; cursor: pointer; border: none; border-radius: 6px; font-weight: 500; transition: background-color 0.2s; }
-        button:hover { opacity: 0.9; }
-        .btn-primary { background-color: var(--primary-color); color: white; }
-        .btn-success { background-color: var(--success-color); color: white; }
-        .btn-danger { background-color: var(--error-color); color: white; }
-        .log-success { color: #98c379; } .log-error { color: #e06c75; } .log-info { color: #61afef; } .log-event { color: var(--event-color); } .log-send { color: #c678dd; }
-        #lobby-details { background: #f9f9f9; padding: 1.5rem; border-radius: 8px; border: 1px solid #eee; }
-        #player-list .player-tag { font-size: 0.75em; padding: 2px 6px; border-radius: 4px; margin-left: 8px; color: white; }
-        .tag-host { background-color: var(--primary-color); }
-        .tag-you { background-color: var(--success-color); }
-        .room-code-wrapper { display: flex; align-items: center; }
-        #room-code { font-size: 1.5em; font-weight: bold; color: var(--primary-color); }
-        #btn-copy { font-size: 0.8em; padding: 5px 10px; }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            background: var(--fg-color);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel h2 {
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .status-bar {
+            background: var(--log-bg);
+            color: var(--log-text);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-family: "Courier New", monospace;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .status-label {
+            font-weight: bold;
+            color: #61afef;
+        }
+
+        .status-value {
+            color: #98c379;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        button:hover {
+            opacity: 0.85;
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning-color);
+            color: #333;
+        }
+
+        .btn-danger {
+            background: var(--error-color);
+            color: white;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            font-size: 1rem;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        #log {
+            background: var(--log-bg);
+            color: var(--log-text);
+            padding: 15px;
+            height: 400px;
+            overflow-y: scroll;
+            border-radius: 8px;
+            font-family: "Fira Code", "Courier New", monospace;
+            font-size: 0.9em;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .log-success {
+            color: #98c379;
+        }
+
+        .log-error {
+            color: #e06c75;
+        }
+
+        .log-info {
+            color: #61afef;
+        }
+
+        .log-event {
+            color: #d19a66;
+        }
+
+        .log-send {
+            color: #c678dd;
+        }
+
+        .scenario-display {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+            margin-bottom: 15px;
+        }
+
+        .scenario-display h3 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .scenario-display p {
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .scenario-display .choices {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .choice-btn {
+            background: white;
+            border: 2px solid var(--primary-color);
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            transition: all 0.2s;
+        }
+
+        .choice-btn:hover:not(:disabled) {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .player-list {
+            list-style: none;
+        }
+
+        .player-list li {
+            background: #f0f0f0;
+            padding: 8px 12px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .tag {
+            font-size: 0.75em;
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-left: 8px;
+            color: white;
+        }
+
+        .tag-host {
+            background: var(--primary-color);
+        }
+
+        .tag-you {
+            background: var(--success-color);
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
     </style>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 </head>
+
 <body>
     <div class="container">
-        <h1>Socket.io 測試</h1>
-        <p><b>狀態:</b> <b id="status">尚未連線</b> | <b>My Socket ID:</b> <span id="my-id">N/A</span></p>
-        <hr>
+        <h1>🎮 Scenario 功能完整測試</h1>
 
-        <!-- Home View -->
-        <div id="view-home" class="view active">
-            <h3>主選單</h3>
-            <div>
-                <button id="btn-create" class="btn-primary">建立一個新房間</button>
+        <!-- 狀態列 -->
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label">連線狀態:</span>
+                <span class="status-value" id="status">尚未連線</span>
             </div>
-            <div style="margin-top: 1.5rem;">
-                <input type="text" id="input-code" placeholder="輸入 6 位數房間號碼..." pattern="\d{6}" maxlength="6" title="請輸入 6 位數字">
-                <button id="btn-join" class="btn-success">加入房間</button>
+            <div class="status-item">
+                <span class="status-label">Socket ID:</span>
+                <span class="status-value" id="my-id">N/A</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">當前房間:</span>
+                <span class="status-value" id="current-room">無</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">當前場景 ID:</span>
+                <span class="status-value" id="current-scenario-id">無</span>
             </div>
         </div>
 
-        <!-- Lobby View -->
-        <div id="view-lobby" class="view">
-            <h3>房間大廳</h3>
-            <div id="lobby-details">
-                <div class="room-code-wrapper">
-                    <span>房號: <b id="room-code">...</b></span>
-                    <button id="btn-copy" class="btn-primary">複製</button>
+        <div class="grid">
+            <!-- 房間管理面板 -->
+            <div class="panel">
+                <h2>📦 房間管理</h2>
+
+                <div class="btn-group">
+                    <button id="btn-create" class="btn-primary">建立房間</button>
                 </div>
-                <p><b>房主 (Host):</b> <span id="host-id">...</span></p>
-                <b>玩家列表 (<span id="player-count">0</span>):</b>
-                <ul id="player-list"></ul>
+
+                <input type="text" id="input-code" placeholder="輸入房間號碼 (6位數字)" pattern="\d{6}" maxlength="6">
+                <button id="btn-join" class="btn-success" style="width: 100%;">加入房間</button>
+
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
+
+                <div id="room-info" style="display: none;">
+                    <h3 style="margin-bottom: 10px;">房間資訊</h3>
+                    <p><strong>房號:</strong> <span id="room-code-display">N/A</span></p>
+                    <p><strong>房主:</strong> <span id="host-id-display">N/A</span></p>
+                    <p><strong>玩家數量:</strong> <span id="player-count">0</span></p>
+                    <ul id="player-list" class="player-list"></ul>
+
+                    <div class="btn-group" style="margin-top: 15px;">
+                        <button id="btn-start" class="btn-success">開始遊戲</button>
+                        <button id="btn-leave" class="btn-danger">離開房間</button>
+                    </div>
+                </div>
             </div>
-            <div style="margin-top: 1.5rem;">
-                <button id="btn-start" class="btn-success">開始遊戲</button>
-                <button id="btn-leave" class="btn-danger">離開房間</button>
+
+            <!-- Scenario 控制面板 -->
+            <div class="panel">
+                <h2>🎬 Scenario 控制</h2>
+
+                <div class="btn-group">
+                    <button id="btn-get-first" class="btn-primary" disabled>取得第一關場景</button>
+                </div>
+
+                <input type="text" id="input-scenario-id" placeholder="輸入場景 ID (例如: 67385d...)"
+                    style="margin-top: 10px;">
+                <button id="btn-get-by-id" class="btn-warning" style="width: 100%;" disabled>根據 ID 取得場景</button>
+
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
+
+                <h3 style="margin-bottom: 10px;">快速測試</h3>
+                <div class="btn-group">
+                    <button id="btn-quick-test" class="btn-success" disabled>🚀 一鍵測試流程</button>
+                </div>
+                <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                    自動執行：建立房間 → 取得第一關場景
+                </p>
+            </div>
+
+            <!-- 場景顯示區 -->
+            <div class="panel full-width">
+                <h2>🖼️ 場景顯示</h2>
+                <div id="scenario-display" class="scenario-display" style="display: none;">
+                    <h3 id="scenario-title">場景標題</h3>
+                    <p id="scenario-description">場景描述...</p>
+                    <div class="choices" id="scenario-choices">
+                        <!-- 選項按鈕會動態生成 -->
+                    </div>
+                </div>
+                <div id="no-scenario" style="text-align: center; color: #999; padding: 40px;">
+                    尚未載入任何場景
+                </div>
+            </div>
+
+            <!-- 日誌區 -->
+            <div class="panel full-width">
+                <h2>📋 事件日誌</h2>
+                <pre id="log"></pre>
+                <button id="btn-clear-log" class="btn-warning" style="margin-top: 10px;">清空日誌</button>
             </div>
         </div>
-
-        <h3>伺服器日誌:</h3>
-        <pre id="log"></pre>
     </div>
 
     <script>
         const SERVER_URL = "http://localhost:8000";
-        
+
         // --- DOM Elements ---
         const ui = {
             status: document.getElementById('status'),
             myId: document.getElementById('my-id'),
+            currentRoom: document.getElementById('current-room'),
+            currentScenarioId: document.getElementById('current-scenario-id'),
             log: document.getElementById('log'),
-            views: {
-                home: document.getElementById('view-home'),
-                lobby: document.getElementById('view-lobby'),
-            },
-            home: {
-                btnCreate: document.getElementById('btn-create'),
-                btnJoin: document.getElementById('btn-join'),
-                inputCode: document.getElementById('input-code'),
-            },
-            lobby: {
-                roomCode: document.getElementById('room-code'),
-                btnCopy: document.getElementById('btn-copy'),
-                hostId: document.getElementById('host-id'),
-                playerCount: document.getElementById('player-count'),
-                playerList: document.getElementById('player-list'),
-                btnStart: document.getElementById('btn-start'),
-                btnLeave: document.getElementById('btn-leave'),
-            }
+
+            // Room
+            btnCreate: document.getElementById('btn-create'),
+            btnJoin: document.getElementById('btn-join'),
+            inputCode: document.getElementById('input-code'),
+            btnStart: document.getElementById('btn-start'),
+            btnLeave: document.getElementById('btn-leave'),
+            roomInfo: document.getElementById('room-info'),
+            roomCodeDisplay: document.getElementById('room-code-display'),
+            hostIdDisplay: document.getElementById('host-id-display'),
+            playerCount: document.getElementById('player-count'),
+            playerList: document.getElementById('player-list'),
+
+            // Scenario
+            btnGetFirst: document.getElementById('btn-get-first'),
+            btnGetById: document.getElementById('btn-get-by-id'),
+            inputScenarioId: document.getElementById('input-scenario-id'),
+            btnQuickTest: document.getElementById('btn-quick-test'),
+            scenarioDisplay: document.getElementById('scenario-display'),
+            noScenario: document.getElementById('no-scenario'),
+            scenarioTitle: document.getElementById('scenario-title'),
+            scenarioDescription: document.getElementById('scenario-description'),
+            scenarioChoices: document.getElementById('scenario-choices'),
+
+            // Log
+            btnClearLog: document.getElementById('btn-clear-log'),
         };
 
         // --- State ---
@@ -105,6 +403,8 @@
         let state = {
             mySocketId: null,
             currentRoom: null,
+            currentScenario: null,
+            isInRoom: false,
         };
 
         // --- Logger ---
@@ -116,157 +416,297 @@
         }
 
         // --- UI Update ---
-        function updateUI(viewName) {
-            Object.values(ui.views).forEach(v => v.classList.remove('active'));
-            if (ui.views[viewName]) {
-                ui.views[viewName].classList.add('active');
-            }
+        function updateRoomUI() {
+            if (state.isInRoom && state.currentRoom) {
+                ui.roomInfo.style.display = 'block';
+                ui.currentRoom.textContent = state.currentRoom.code;
+                ui.roomCodeDisplay.textContent = state.currentRoom.code;
+                ui.hostIdDisplay.textContent = state.currentRoom.hostId;
+                ui.playerCount.textContent = state.currentRoom.players.length;
 
-            if (viewName === 'lobby' && state.currentRoom) {
-                const room = state.currentRoom;
-                ui.lobby.roomCode.innerText = room.code;
-                ui.lobby.hostId.innerText = room.hostId;
-                ui.lobby.playerCount.innerText = room.players.length;
-                
-                ui.lobby.playerList.innerHTML = '';
-                room.players.forEach(playerId => {
+                // Update player list
+                ui.playerList.innerHTML = '';
+                state.currentRoom.players.forEach(playerId => {
                     const li = document.createElement('li');
-                    li.innerText = playerId;
-                    if (playerId === room.hostId) {
+                    const span = document.createElement('span');
+                    span.textContent = playerId;
+                    li.appendChild(span);
+
+                    const tagContainer = document.createElement('div');
+                    if (playerId === state.currentRoom.hostId) {
                         const hostTag = document.createElement('span');
-                        hostTag.className = 'player-tag tag-host';
-                        hostTag.innerText = '房主';
-                        li.appendChild(hostTag);
+                        hostTag.className = 'tag tag-host';
+                        hostTag.textContent = '房主';
+                        tagContainer.appendChild(hostTag);
                     }
                     if (playerId === state.mySocketId) {
                         const youTag = document.createElement('span');
-                        youTag.className = 'player-tag tag-you';
-                        youTag.innerText = '你';
-                        li.appendChild(youTag);
+                        youTag.className = 'tag tag-you';
+                        youTag.textContent = '你';
+                        tagContainer.appendChild(youTag);
                     }
-                    ui.lobby.playerList.appendChild(li);
+                    li.appendChild(tagContainer);
+                    ui.playerList.appendChild(li);
                 });
 
-                ui.lobby.btnStart.style.display = (room.hostId === state.mySocketId) ? 'inline-block' : 'none';
+                // Show/hide start button
+                ui.btnStart.style.display =
+                    (state.currentRoom.hostId === state.mySocketId) ? 'block' : 'none';
+
+                // Enable scenario buttons
+                ui.btnGetFirst.disabled = false;
+                ui.btnGetById.disabled = false;
+                ui.btnQuickTest.disabled = false;
+            } else {
+                ui.roomInfo.style.display = 'none';
+                ui.currentRoom.textContent = '無';
+                ui.btnGetFirst.disabled = true;
+                ui.btnGetById.disabled = true;
+                ui.btnQuickTest.disabled = true;
             }
         }
 
-        // --- Socket Logic ---
+        function updateScenarioUI(scenario) {
+            if (!scenario) {
+                ui.scenarioDisplay.style.display = 'none';
+                ui.noScenario.style.display = 'block';
+                ui.currentScenarioId.textContent = '無';
+                return;
+            }
+
+            state.currentScenario = scenario;
+            ui.currentScenarioId.textContent = scenario._id || scenario.id || 'Unknown';
+
+            ui.scenarioDisplay.style.display = 'block';
+            ui.noScenario.style.display = 'none';
+
+            ui.scenarioTitle.textContent = scenario.title || '未命名場景';
+            ui.scenarioDescription.textContent = scenario.description || '無描述';
+
+            // Render choices
+            ui.scenarioChoices.innerHTML = '';
+            if (scenario.options && scenario.options.length > 0) {
+                scenario.options.forEach((option, index) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'choice-btn';
+                    btn.textContent = `選項 ${index + 1}: ${option.text || '未命名選項'}`;
+                    btn.onclick = () => {
+                        // 防止重複點擊
+                        if (btn.disabled) return;
+                        btn.disabled = true;
+                        
+                        logEvent(`選擇了選項 ${index + 1}: ${option.text}`, 'info');
+
+                        if (option.nextScenarioId) {
+                            logEvent(`下一個場景 ID: ${option.nextScenarioId}`, 'info');
+
+                            // 同時填入輸入框（方便查看）
+                            ui.inputScenarioId.value = option.nextScenarioId;
+
+                            // ✅ 直接發送 Socket 事件取得下一個場景
+                            logEvent(`發送 'scenario:next' { nextScenarioId: "${option.nextScenarioId}" }`, 'send', 'send');
+                            socket.emit('scenario:next', { nextScenarioId: option.nextScenarioId });
+
+                            // 2秒後重新啟用按鈕
+                            setTimeout(() => {
+                                btn.disabled = false;
+                            }, 2000);
+                        } else {
+                            logEvent('此選項沒有下一個場景（可能是結局）', 'warning');
+                            alert('🎉 恭喜！你已到達結局！');
+                            btn.disabled = false;
+                        }
+                    };
+                    ui.scenarioChoices.appendChild(btn);
+                });
+            } else {
+                ui.scenarioChoices.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">此場景沒有選項（結局場景）</p>';
+            }
+        }
+
+        // --- Socket Setup ---
         function setupSocketListeners() {
             socket.on('connect', () => {
                 state.mySocketId = socket.id;
-                ui.status.textContent = '已連線';
-                ui.status.className = 'log-success';
-                ui.myId.innerText = state.mySocketId;
-                logEvent(`連線成功！ ID: ${socket.id}`, 'success');
-                updateUI('home');
+                ui.status.textContent = '已連線 ✅';
+                ui.myId.textContent = socket.id;
+                logEvent(`連線成功！Socket ID: ${socket.id}`, 'success');
             });
 
             socket.on('disconnect', () => {
-                ui.status.textContent = '已斷線';
-                ui.status.className = 'log-error';
-                ui.myId.innerText = 'N/A';
+                ui.status.textContent = '已斷線 ❌';
+                ui.myId.textContent = 'N/A';
                 logEvent('已斷開連線', 'error');
+                state.isInRoom = false;
                 state.currentRoom = null;
-                state.mySocketId = null;
-                updateUI('home');
+                state.currentScenario = null;
+                updateRoomUI();
+                updateScenarioUI(null);
             });
 
-            // --- Standard Event Handler ---
-            const createHandler = (eventName) => (response) => {
-                try {
-                    logEvent(`[${eventName}] \n${JSON.stringify(response, null, 2)}`, 'event', 'recv');
-                    if (!response.success) {
-                        alert(`錯誤: ${response.message}`);
-                        return;
-                    }
-                    
-                    // Handle specific events based on their name
-                    switch(eventName) {
-                        case 'room:created':
-                        case 'room:joined':
-                            state.currentRoom = response.body;
-                            updateUI('lobby');
-                            break;
-                        case 'player:joined':
-                        case 'player:left':
-                            if (state.currentRoom) {
-                                state.currentRoom.players = response.body.players;
-                                updateUI('lobby');
-                            }
-                            break;
-                        case 'room:closed':
-                            alert(response.message);
-                            state.currentRoom = null;
-                            updateUI('home');
-                            break;
-                        case 'game:started':
-                            alert(response.message);
-                            // You can add logic here to switch to a "game view"
-                            break;
-                    }
-                } catch (e) {
-                    logEvent(`無法解析來自 [${eventName}] 的回應: ${e}`, 'error', 'recv');
+            // Room events
+            socket.on('room:created', (response) => {
+                logEvent(`[room:created]\n${JSON.stringify(response, null, 2)}`, 'event', 'recv');
+                if (response.success) {
+                    state.isInRoom = true;
+                    state.currentRoom = response.body;
+                    updateRoomUI();
                 }
-            };
+            });
 
-            socket.on('room:created', createHandler('room:created'));
-            socket.on('room:joined', createHandler('room:joined'));
-            socket.on('player:joined', createHandler('player:joined'));
-            socket.on('player:left', createHandler('player:left'));
-            socket.on('room:closed', createHandler('room:closed'));
-            socket.on('game:started', createHandler('game:started'));
-            
-            // Special error handler
+            socket.on('room:joined', (response) => {
+                logEvent(`[room:joined]\n${JSON.stringify(response, null, 2)}`, 'event', 'recv');
+                if (response.success) {
+                    state.isInRoom = true;
+                    state.currentRoom = response.body;
+                    updateRoomUI();
+                }
+            });
+
+            socket.on('player:joined', (response) => {
+                logEvent(`[player:joined]\n${JSON.stringify(response, null, 2)}`, 'event', 'recv');
+                if (response.success && state.currentRoom) {
+                    state.currentRoom.players = response.body.players;
+                    updateRoomUI();
+                }
+            });
+
+            socket.on('player:left', (response) => {
+                logEvent(`[player:left]\n${JSON.stringify(response, null, 2)}`, 'event', 'recv');
+                if (response.success && state.currentRoom) {
+                    state.currentRoom.players = response.body.players;
+                    updateRoomUI();
+                }
+            });
+
+            socket.on('room:closed', (response) => {
+                logEvent(`[room:closed]\n${JSON.stringify(response, null, 2)}`, 'event', 'recv');
+                alert('房間已解散');
+                state.isInRoom = false;
+                state.currentRoom = null;
+                updateRoomUI();
+            });
+
+            socket.on('game:started', (response) => {
+                logEvent(`[game:started]\n${JSON.stringify(response, null, 2)}`, 'event', 'recv');
+                alert('遊戲已開始！');
+            });
+
             socket.on('room:error', (error) => {
-                logEvent(`[room:error] \n${JSON.stringify(error, null, 2)}`, 'error', 'recv');
-                alert(`伺服器錯誤: ${error.message}`);
+                logEvent(`[room:error]\n${JSON.stringify(error, null, 2)}`, 'error', 'recv');
+                alert(`房間錯誤: ${error.message}`);
+            });
+
+            // Scenario events
+            socket.on('scenario:first', (response) => {
+                logEvent(`[scenario:first]\n${JSON.stringify(response, null, 2)}`, 'event', 'recv');
+                if (response.success) {
+                    updateScenarioUI(response.body);
+                    logEvent('✅ 成功取得第一關場景！', 'success');
+                } else {
+                    logEvent(`❌ 取得第一關場景失敗: ${response.message}`, 'error');
+                    alert(`錯誤: ${response.message}`);
+                }
+            });
+
+            socket.on('scenario:next', (response) => {
+                logEvent(`[scenario:next]\n${JSON.stringify(response, null, 2)}`, 'event', 'recv');
+                if (response.success) {
+                    updateScenarioUI(response.body);
+                    logEvent(`✅ 成功切換到場景: ${response.body.title || response.body._id}`, 'success');
+                    
+                    // 自動滾動到場景顯示區
+                    setTimeout(() => {
+                        ui.scenarioDisplay.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 100);
+                } else {
+                    logEvent(`❌ 取得下一個場景失敗: ${response.message}`, 'error');
+                    alert(`錯誤: ${response.message}`);
+                }
+            });
+
+            socket.on('scenario:error', (error) => {
+                logEvent(`[scenario:error]\n${JSON.stringify(error, null, 2)}`, 'error', 'recv');
+                alert(`場景錯誤: ${error.message}`);
             });
         }
 
         // --- Event Bindings ---
         function bindUIEvents() {
-            ui.home.btnCreate.onclick = () => {
+            // Room controls
+            ui.btnCreate.onclick = () => {
                 logEvent("發送 'room:create'", 'send', 'send');
                 socket.emit('room:create');
             };
 
-            ui.home.btnJoin.onclick = () => {
-                const code = ui.home.inputCode.value.trim();
-                
-                // ✅ 加強驗證：檢查是否為有效的房間號碼
+            ui.btnJoin.onclick = () => {
+                const code = ui.inputCode.value.trim();
                 if (!code) {
                     alert("請輸入房間號碼！");
                     return;
                 }
-                
-                // 檢查是否為 6 位數字
                 if (!/^\d{6}$/.test(code)) {
-                    alert("房間號碼必須是 6 位數字！");
+                    alert("房間號碼必須為 6 位數字！");
                     return;
                 }
-                
-                logEvent(`發送 'room:join' (Code: ${code})`, 'send', 'send');
-                socket.emit('room:join', { roomCode: code });  // ✅ 修正：發送物件而非字串
+                logEvent(`發送 'room:join' { roomCode: "${code}" }`, 'send', 'send');
+                socket.emit('room:join', { roomCode: code });
             };
 
-            ui.lobby.btnStart.onclick = () => {
-                 logEvent("發送 'game:start'", 'send', 'send');
-                 socket.emit('game:start');
+            ui.btnStart.onclick = () => {
+                logEvent("發送 'game:start'", 'send', 'send');
+                socket.emit('game:start');
             };
 
-            ui.lobby.btnLeave.onclick = () => {
+            ui.btnLeave.onclick = () => {
                 logEvent("發送 'room:leave'", 'send', 'send');
-                // ✅ 修正：使用主動離開事件，而不是直接斷線
                 socket.emit('room:leave');
+                state.isInRoom = false;
                 state.currentRoom = null;
-                updateUI('home');
+                state.currentScenario = null;
+                updateRoomUI();
+                updateScenarioUI(null);
             };
 
-            ui.lobby.btnCopy.onclick = () => {
-                navigator.clipboard.writeText(ui.lobby.roomCode.innerText).then(() => {
-                    logEvent('房號已複製到剪貼簿', 'success');
-                });
+            // Scenario controls
+            ui.btnGetFirst.onclick = () => {
+                logEvent("發送 'scenario:first'", 'send', 'send');
+                socket.emit('scenario:first');
+            };
+
+            ui.btnGetById.onclick = () => {
+                const scenarioId = ui.inputScenarioId.value.trim();
+                if (!scenarioId) {
+                    alert("請輸入場景 ID！");
+                    return;
+                }
+                logEvent(`發送 'scenario:next' { nextSenarioId: "${scenarioId}" }`, 'send', 'send');
+                socket.emit('scenario:next', { nextSenarioId: scenarioId });
+            };
+
+            ui.btnQuickTest.onclick = async () => {
+                logEvent("🚀 開始快速測試流程...", 'info');
+
+                // Step 1: Create room
+                logEvent("步驟 1: 建立房間", 'info');
+                socket.emit('room:create');
+
+                // Wait for room to be created
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                if (state.isInRoom) {
+                    // Step 2: Get first scenario
+                    logEvent("步驟 2: 取得第一關場景", 'info');
+                    socket.emit('scenario:first');
+                } else {
+                    logEvent("快速測試失敗：未能成功建立房間", 'error');
+                }
+            };
+
+            // Log controls
+            ui.btnClearLog.onclick = () => {
+                ui.log.innerHTML = '';
+                logEvent("日誌已清空", 'info');
             };
         }
 
@@ -276,10 +716,12 @@
             socket = io(SERVER_URL);
             setupSocketListeners();
             bindUIEvents();
-            updateUI('home');
+            updateRoomUI();
+            updateScenarioUI(null);
         }
 
         init();
     </script>
 </body>
+
 </html>
