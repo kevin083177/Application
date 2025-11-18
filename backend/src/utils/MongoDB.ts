@@ -3,7 +3,7 @@ import { logger } from '../middlewares/log';
 import { Mongo } from '../interfaces/mongo';
 
 export class MongoDB {
-    private url: string; // 
+    private url: string;
     DB: Mongoose | void | undefined
     isConnected: boolean = false
 

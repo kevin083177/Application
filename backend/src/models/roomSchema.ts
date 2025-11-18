@@ -2,23 +2,31 @@ import { model, Schema } from 'mongoose';
 import { Room } from '../interfaces/room';
 
 const roomSchema = new Schema<Room>({
-    code: { 
-        type: Number, 
-        required: true, 
+    code: {
+        type: Number,
+        required: true,
         unique: true,
         index: true
     },
-    hostId: { 
-        type: String, 
-        required: true 
+    hostId: {
+        type: String,
+        required: true
     },
-    players: { 
+    players: {
         type: [String], default: []
     },
-    gameStarted: {
-        type: Boolean,
-        default: false
-    }
+    status: {
+        type: String,
+        enum: ['waiting', 'playing', 'ended'],
+        default: 'waiting'
+    },
+    // 目前進行到哪一題 (存 Scenario 的 ID)
+    currentScenarioId: {
+        type: String,
+        ref: 'Scenario',
+        default: null
+    },
+    created_at: { type: Date, default: Date.now, expires: 7200 }
 })
 
 export const RoomModel = model<Room>('room', roomSchema);
