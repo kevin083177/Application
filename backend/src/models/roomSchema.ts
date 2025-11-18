@@ -27,6 +27,6 @@ const roomSchema = new Schema<Room>({
         default: null
     },
     created_at: { type: Date, default: Date.now, expires: 7200 }
-})
+}, { versionKey: false})
 
 export const RoomModel = model<Room>('room', roomSchema);
