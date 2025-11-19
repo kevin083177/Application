@@ -1,0 +1,83 @@
+.home-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: #1a1a1a;
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  position: relative;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background-color: #2a2a2a;
+  border-radius: 20px;
+  border: 1px solid #333;
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 0;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #666;
+  box-shadow: 0 0 5px rgba(0,0,0,0.5);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.status-dot.connected {
+  background-color: #00cc66;
+  box-shadow: 0 0 8px #00cc66;
+}
+
+.status-dot.disconnected {
+  background-color: #ff4444;
+  box-shadow: 0 0 8px #ff4444;
+}
+
+.status-text {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #ccc;
+}
+
+.create-btn {
+  padding: 18px 48px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  background-color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 0 #cccccc;
+}
+
+.create-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #cccccc;
+  background-color: #f0f0f0;
+}
+
+.create-btn:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #cccccc;
+}
+
+.create-btn:disabled {
+  background-color: #555;
+  color: #888;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}

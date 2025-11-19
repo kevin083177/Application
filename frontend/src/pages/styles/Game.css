@@ -1,0 +1,23 @@
+.game-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #1a1a1a;
+    color: white;
+    font-family: 'Inter', sans-serif;
+}
+
+.game-title {
+    font-size: 1.5rem;
+    color: #888;
+}
+
+.scenario-box {
+    margin-top: 20px;
+    padding: 20px;
+    border: 1px solid #333;
+    border-radius: 8px;
+    background: #252525;
+}

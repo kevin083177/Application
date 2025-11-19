@@ -1,0 +1,147 @@
+.lobby-container {
+  padding: 40px;
+  min-height: 100vh;
+  background-color: #1a1a1a;
+  color: #fff;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.leave-btn {
+  position: absolute;
+  top: 30px;
+  right: 30px;
+  background-color: transparent;
+  border: 1px solid #444;
+  color: #888;
+  padding: 8px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.leave-btn:hover {
+  border-color: #ff4444;
+  color: #ff4444;
+}
+
+.lobby-header {
+  text-align: center;
+  margin-bottom: 50px;
+  margin-top: 20px;
+}
+
+.room-code-label {
+  font-size: 1rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+  display: block;
+}
+
+.room-code-display {
+  font-size: 4rem;
+  font-weight: 700;
+  letter-spacing: 8px;
+  color: #ffffff;
+  background: #2a2a2a;
+  padding: 10px 40px;
+  border-radius: 12px;
+  display: inline-block;
+  border: 1px dashed #444;
+}
+
+.players-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 20px;
+  width: 100%;
+  max-width: 800px;
+  margin-bottom: 40px;
+}
+
+.player-card {
+  background-color: #252525;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  transition: transform 0.2s;
+  animation: popIn 0.3s ease-out;
+}
+
+.player-card.is-host {
+  border-color: #ffd700;
+  background-color: #2a2a20;
+}
+
+.player-avatar {
+  font-size: 2.5rem;
+}
+
+.player-info {
+  text-align: center;
+}
+
+.player-name {
+  font-weight: bold;
+  font-size: 1.1rem;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.player-id {
+  font-size: 0.8rem;
+  color: #666;
+  font-family: monospace;
+}
+
+.waiting-state {
+  text-align: center;
+  color: #666;
+  margin-top: 20px;
+  animation: pulse 2s infinite;
+}
+
+.start-btn {
+  padding: 16px 60px;
+  font-size: 1.2rem;
+  background-color: #00cc66;
+  color: white;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s;
+  box-shadow: 0 4px 10px rgba(0, 204, 102, 0.3);
+}
+
+.start-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background-color: #00e673;
+  box-shadow: 0 6px 15px rgba(0, 204, 102, 0.4);
+}
+
+.start-btn:disabled {
+  background-color: #333;
+  color: #666;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+@keyframes popIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes pulse {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
