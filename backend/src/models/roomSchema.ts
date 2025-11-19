@@ -20,11 +20,15 @@ const roomSchema = new Schema<Room>({
         enum: ['waiting', 'playing', 'ended'],
         default: 'waiting'
     },
-    // 目前進行到哪一題 (存 Scenario 的 ID)
     currentScenarioId: {
         type: String,
         ref: 'Scenario',
         default: null
+    },
+    currentVotes: {
+        type: Map,
+        of: String,
+        default: {}
     },
     created_at: { type: Date, default: Date.now, expires: 7200 }
 }, { versionKey: false})

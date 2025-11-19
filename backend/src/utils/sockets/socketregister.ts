@@ -10,7 +10,6 @@ export const registerSocketHandlers = (io: Server) => {
     io.on('connection', (socket: Socket) => {
         logger.info(`Socket connected: ${socket.id}`);
 
-        // 綁定事件：使用 createSocketHandler 包裹 Controller 方法
         socket.on('room:create', () =>
             createSocketHandler(roomController.createRoom)(socket, io)
         );
@@ -21,7 +20,7 @@ export const registerSocketHandlers = (io: Server) => {
 
         socket.on('game:start', () => {
             createSocketHandler(roomController.startGame)(socket, io);
-            createSocketHandler(scenarioController.getFirstScenario)(socket, io);
+            createSocketHandler((s, i) => scenarioController.getFirstScenario(s))(socket, io);
         });
 
         socket.on('scenario:first', () =>
@@ -39,5 +38,13 @@ export const registerSocketHandlers = (io: Server) => {
         socket.on('room:leave', () => {
             createSocketHandler(roomController.handleDisconnect)(socket, io);
         });
+
+        socket.on('vote:submit', (data) => 
+            createSocketHandler((s, i) => roomController.submitVote(s, i, data))(socket, io)
+        );
+
+        socket.on('vote:end', () => 
+            createSocketHandler(roomController.endVoting)(socket, io)
+        );
     });
 };

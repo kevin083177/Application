@@ -3,13 +3,16 @@ import { RoomService } from "../services/roomService";
 import { logger } from "../middlewares/log";
 import { Room } from "../interfaces/room";
 import { SocketHelper } from "../utils/sockets/socketResponse";
+import { ScenarioService } from "../services/scenarioService";
 
 export class RoomController {
     protected service: RoomService;
+    protected scenarioService: ScenarioService;
     private io: Server;
 
     constructor(io: Server) {
         this.service = new RoomService();
+        this.scenarioService = new ScenarioService();
         this.io = io;
     }
 
@@ -299,5 +302,139 @@ export class RoomController {
             success: true,
             room: updatedRoom
         };
+    }
+
+    /**
+     * 處理玩家投票
+     * Event: "vote:submit"
+     * Data: { optionId: string }
+     */
+    public submitVote = async (socket: Socket, io: Server, data: { optionId: string }) => {
+        try {
+            if (!data || !data.optionId) {
+                SocketHelper.sendError(socket, "vote:error", "無效的選項 ID");
+                return;
+            }
+
+            // 2. 獲取房間資訊
+            const room = await this.service.findRoomBySocketId(socket.id);
+            if (!room) {
+                SocketHelper.sendError(socket, "vote:error", "你不在房間內");
+                return;
+            }
+
+            // 3. 驗證身分：房主不能投票
+            if (room.hostId === socket.id) {
+                SocketHelper.sendError(socket, "vote:error", "房主不能參與投票");
+                return;
+            }
+
+            // 4. 提交投票
+            const updatedRoom = await this.service.submitVote(room.code.toString(), socket.id, data.optionId);
+            
+            if (updatedRoom) {
+                SocketHelper.send(socket, "vote:success", { optionId: data.optionId }, "投票成功");
+                
+                // logger.info(`[Vote] Player ${socket.id} voted for ${data.optionId} in room ${room.code}`);
+            }
+
+        } catch (error: any) {
+            logger.error(`[Controller] submitVote error:`, error);
+            SocketHelper.sendError(socket, "vote:error", "投票失敗");
+        }
+    }
+
+    /**
+     * 投票時間結束，結算結果
+     * Event: "vote:end" (由房主前端計時器結束後觸發)
+     */
+    public endVoting = async (socket: Socket, io: Server) => {
+        try {
+            const room = await this.service.findRoomBySocketId(socket.id);
+            if (!room) return;
+
+            if (room.hostId !== socket.id) {
+                SocketHelper.sendError(socket, "vote:error", "只有房主可以結算投票");
+                return;
+            }
+
+            // 計算票數
+            const votes = room.currentVotes; // Map<playerId, optionId>
+            const voteCounts: Record<string, number> = {};
+
+            if (votes && votes.size > 0) {
+                for (const optionId of votes.values()) {
+                    voteCounts[optionId] = (voteCounts[optionId] || 0) + 1;
+                }
+            }
+
+            // 決定最高票選項
+            let winningOptionId: string | null = null;
+            let maxVotes = -1;
+
+            const optionIds = Object.keys(voteCounts);
+            if (optionIds.length > 0) {
+                // 找出最高票
+                for (const optId of optionIds) {
+                    if (voteCounts[optId] > maxVotes) {
+                        maxVotes = voteCounts[optId];
+                        winningOptionId = optId;
+                    } else if (voteCounts[optId] === maxVotes) {
+                        // 同票處理：隨機選擇一個
+                        if (Math.random() > 0.5) {
+                            winningOptionId = optId;
+                        }
+                    }
+                }
+            } else {
+                // 沒人投票：隨機選擇當前場景的一個選項作為結果
+                logger.info(`[Vote] No votes in room ${room.code}, picking random option.`);
+                if (room.currentScenarioId) {
+                    const currentScenario = await this.scenarioService.getNextScenarioById(room.currentScenarioId);
+                    if (currentScenario && currentScenario.options.length > 0) {
+                         const randomIdx = Math.floor(Math.random() * currentScenario.options.length);
+                         winningOptionId = currentScenario.options[randomIdx].optionId;
+                    }
+                }
+            }
+
+            if (!winningOptionId) {
+                SocketHelper.sendError(socket, "vote:error", "無法決定結果 (可能場景資料有誤)");
+                return;
+            }
+
+            // 查詢下一關資訊
+            // winningOptionId -> nextScenarioId
+            if (!room.currentScenarioId) {
+                 SocketHelper.sendError(socket, "vote:error", "房間當前無場景資訊");
+                 return;
+            }
+
+            const currentScenario = await this.scenarioService.getNextScenarioById(room.currentScenarioId);
+            if (!currentScenario) {
+                SocketHelper.sendError(socket, "vote:error", "找不到當前場景資料");
+                return;
+            }
+
+            const selectedOption = currentScenario.options.find(opt => opt.optionId === winningOptionId);
+            const nextScenarioId = selectedOption ? selectedOption.nextScenarioId : null;
+
+            // 更新房間狀態 (清除投票，設定下一關)
+            await this.service.concludeVoting(room.code.toString(), nextScenarioId);
+
+            // 廣播結果
+            SocketHelper.ioEmit(io, room.code.toString(), "vote:result", {
+                winningOptionId: winningOptionId,
+                voteCounts: voteCounts,
+                nextScenarioId: nextScenarioId,
+                consequence: selectedOption?.consequence || "無後果描述"
+            }, "投票結束，結果已產生");
+            
+            // logger.info(`[Vote] Room ${room.code} result: Option ${winningOptionId} (Next: ${nextScenarioId})`);
+
+        } catch (error: any) {
+            logger.error(`[Controller] endVoting error:`, error);
+            SocketHelper.sendError(socket, "vote:error", "結算投票失敗");
+        }
     }
 }

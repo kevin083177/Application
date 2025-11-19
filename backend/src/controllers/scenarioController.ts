@@ -29,7 +29,7 @@ export class ScenarioController {
      * 取得第一關場景
      * Event: "scenario:first"
      */
-    public async getFirstScenario(socket: Socket): Promise<void> {
+    public getFirstScenario = async (socket: Socket) => {
         const roomCode = await this._validateSocketInRoom(socket);
         if (!roomCode) return;
 
@@ -39,15 +39,16 @@ export class ScenarioController {
             return;
         }
 
-        if (!this.io){
-            SocketHelper.sendError(socket, "scenario:error", "Socket IO 未初始化");
-            return;
-        }
-        
+        await this.roomService.updateCurrentScenario(roomCode, scenario._id.toString());
+
         SocketHelper.ioEmit(this.io, roomCode, "scenario:first", scenario, "successfully retrieved first scenario");
     }
 
-    public async getNextScenarioById(socket: Socket, nextScenarioId: string): Promise<void> {
+    /**
+     * 取得下一關場景
+     * Event: "scenario:next"
+     */
+    public getNextScenarioById = async (socket: Socket, nextScenarioId: string) => {
         const roomCode = await this._validateSocketInRoom(socket);
         if (!roomCode) return;
 
@@ -56,11 +57,8 @@ export class ScenarioController {
             SocketHelper.sendError(socket, "scenario:error", "無法取得下一關場景");
             return;
         }
-        
-        if (!this.io){
-            SocketHelper.sendError(socket, "scenario:error", "Socket IO 未初始化");
-            return;
-        }
+
+        await this.roomService.updateCurrentScenario(roomCode, scenario._id.toString());
 
         SocketHelper.ioEmit(this.io, roomCode, "scenario:next", scenario, "successfully retrieved next scenario");
     }

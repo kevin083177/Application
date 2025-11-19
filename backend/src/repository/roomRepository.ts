@@ -246,4 +246,47 @@ export class RoomRepository extends BaseRepository<Room> {
     public async roomExists(roomCode: number): Promise<boolean> {
         return await this.exists({ code: roomCode });
     }
+
+    /**
+     * 玩家投票
+     * @param roomCode 房間代碼
+     * @param playerId 玩家 ID
+     * @param optionId 選項 ID
+     */
+    public async submitVote(roomCode: number, playerId: string, optionId: string): Promise<Room | null> {
+        const updateQuery = {
+            [`currentVotes.${playerId}`]: optionId
+        };
+
+        return await this.model.findOneAndUpdate(
+            { code: roomCode },
+            { $set: updateQuery },
+            { new: true }
+        ).exec();
+    }
+
+    /**
+     * 更新房間當前的場景 ID
+     * @param roomCode 房間代碼
+     * @param scenarioId 場景 ID
+     */
+    public async updateCurrentScenario(roomCode: number, scenarioId: string): Promise<Room | null> {
+        return await this.updateByCode(
+            roomCode,
+            { currentScenarioId: scenarioId }
+        );
+    }
+
+    public async clearVotesAndSetScenario(roomCode: number, nextScenarioId: string | null): Promise<Room | null> {
+        return await this.model.findOneAndUpdate(
+            { code: roomCode },
+            { 
+                $set: { 
+                    currentVotes: {},
+                    currentScenarioId: nextScenarioId // 更新場景
+                } 
+            },
+            { new: true }
+        ).exec();
+    }
 }
