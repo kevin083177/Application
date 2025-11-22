@@ -3,13 +3,16 @@ import { RoomService } from "../services/roomService";
 import { logger } from "../middlewares/log";
 import { Room } from "../interfaces/room";
 import { SocketHelper } from "../utils/sockets/socketResponse";
+import { ScenarioService } from "../services/scenarioService";
 
 export class RoomController {
     protected service: RoomService;
+    protected scenarioService: ScenarioService;
     private io: Server;
 
     constructor(io: Server) {
         this.service = new RoomService();
+        this.scenarioService = new ScenarioService();
         this.io = io;
     }
 
@@ -44,12 +47,16 @@ export class RoomController {
 
     /**
      * 加入房間
-     * Event: "room:join"
-     * Data: roomCode (string)
+     * Data: { roomCode: string, name: string, avatar: string }
      */
-    public joinRoom = async (socket: Socket, io: Server, roomCode: string) => {
+    public joinRoom = async (socket: Socket, io: Server, data: { roomCode: string, name: string, avatar: string }) => {
         try {
-            const result = await this._joinRoomLogic(roomCode, socket.id);
+            if (!data || !data.roomCode || !data.name || !data.avatar) {
+                SocketHelper.sendError(socket, "room:error", "缺少必要參數 (roomCode, name, avatar)");
+                return;
+            }
+
+            const result = await this._joinRoomLogic(data.roomCode, socket.id, data.name, data.avatar);
     
             if (!result.success) {
                 SocketHelper.sendError(socket, "room:error", result.message || "無法加入房間");
@@ -59,16 +66,14 @@ export class RoomController {
             const room = result.room!;
             socket.join(room.code.toString());
 
-            // 通知自己加入成功
             SocketHelper.send(socket, "room:joined", room, "加入房間成功");
 
-            // 通知房間內其他人
             SocketHelper.broadcast(socket, room.code.toString(), "player:joined", {
                 playerId: socket.id,
                 players: room.players
             }, "有新玩家加入");
 
-            logger.info(`[Controller] Player ${socket.id} joined room ${roomCode}`);
+            logger.info(`[Controller] Player ${data.name} (${socket.id}) joined room ${data.roomCode}`);
         } catch (error: any) {
             SocketHelper.sendError(socket, "room:error", "無法加入房間");
             logger.error(`[Controller] joinRoom error:`, error);
@@ -151,103 +156,29 @@ export class RoomController {
         await this.handleDisconnect(socket, io);
     }
 
-    // ==================== Private Helper Methods ====================
-
     /**
      * 加入房間的驗證邏輯
      * @private
      */
-    private async _joinRoomLogic(roomCode: string, playerId: string): Promise<{
-        success: boolean;
-        room?: Room;
-        message?: string;
-        errorType?: string;
-    }> {
+    private async _joinRoomLogic(roomCode: string, playerId: string, name: string, avatar: string) {
         try {
-            // 1. 檢查是否為 undefined、null 或空字串
-            if (roomCode === undefined || roomCode === null || roomCode === '') {
-                logger.warn(`[Controller] Invalid roomCode: empty or undefined`);
-                return {
-                    success: false,
-                    message: '無效的房間號碼',
-                    errorType: 'badRequest'
-                };
-            }
-
-            // 2. 轉換為字串並去除空白
+            if (!roomCode) return { success: false, message: '無效房號' };
             const trimmedCode = String(roomCode).trim();
-
-            // 3. 檢查是否為純數字且長度為 6
-            if (!/^\d{6}$/.test(trimmedCode)) {
-                logger.warn(`[Controller] Invalid roomCode format: ${trimmedCode}`);
-                return {
-                    success: false,
-                    message: '房間號碼必須為 6 位數字',
-                    errorType: 'badRequest'
-                };
-            }
-
-            // 4. 檢查是否已在房間
+            
             const isInRoom = await this.service.isSocketInRoom(playerId);
-            if (isInRoom) {
-                return {
-                    success: false,
-                    message: '你已經在一個房間了',
-                    errorType: 'conflict'
-                };
-            }
+            if (isInRoom) return { success: false, message: '已在房間內' };
 
-            // 5. 檢查房間是否存在
             const room = await this.service.getRoom(trimmedCode);
-            if (!room) {
-                logger.warn(`[Controller] Room not found: ${trimmedCode}`);
-                return {
-                    success: false,
-                    message: '房間不存在',
-                    errorType: 'notFound'
-                };
-            }
+            if (!room) return { success: false, message: '房間不存在' };
+            if (room.hostId === playerId) return { success: false, message: '房主不能加入' };
+            if (room.status !== 'waiting') return { success: false, message: '遊戲已開始' };
 
-            // 6. 檢查是否為房主
-            if (room.hostId === playerId) {
-                return {
-                    success: false,
-                    message: '房主不能加入自己的房間',
-                    errorType: 'badRequest'
-                };
-            }
+            const updatedRoom = await this.service.addPlayer(trimmedCode, playerId, name, avatar);
+            if (!updatedRoom) return { success: false, message: '加入失敗' };
 
-            // 7. 檢查遊戲是否已開始
-            if (room.status !== 'waiting') {
-                return {
-                    success: false,
-                    message: '遊戲已開始，無法加入',
-                    errorType: 'conflict'
-                };
-            }
-
-            // 8. 加入房間
-            const updatedRoom = await this.service.addPlayer(trimmedCode, playerId);
-            if (!updatedRoom) {
-                logger.error(`[Controller] Failed to add player ${playerId} to room ${trimmedCode}`);
-                return {
-                    success: false,
-                    message: '加入房間失敗',
-                    errorType: 'badRequest'
-                };
-            }
-
-            return {
-                success: true,
-                room: updatedRoom
-            };
+            return { success: true, room: updatedRoom };
         } catch (error: any) {
-            logger.error(`[Controller] _joinRoomLogic internal error:`, error);
-            return {
-                success: false,
-                message: '伺服器內部錯誤，無法加入房間',
-                errorType: 'internalError'
-            };
+            return { success: false, message: '伺服器錯誤' };
         }
     }
 
@@ -255,49 +186,138 @@ export class RoomController {
      * 開始遊戲的驗證邏輯
      * @private
      */
-    private async _startGameLogic(roomCode: string, hostId: string): Promise<{
-        success: boolean;
-        room?: Room;
-        message?: string;
-        errorType?: string;
-    }> {
+    private async _startGameLogic(roomCode: string, hostId: string) {
         const room = await this.service.getRoom(roomCode);
-        if (!room) {
-            return {
-                success: false,
-                message: '房間不存在',
-                errorType: 'notFound'
-            };
-        }
-
-        if (room.hostId !== hostId) {
-            return {
-                success: false,
-                message: '只有房主才能開始遊戲',
-                errorType: 'forbidden'
-            };
-        }
-
-        if (room.players.length < 2) {
-            return {
-                success: false,
-                message: '至少需要 2 個玩家才能開始遊戲',
-                errorType: 'badRequest'
-            };
-        }
-
+        if (!room) return { success: false, message: '房間不存在' };
+        if (room.hostId !== hostId) return { success: false, message: '權限不足' };
+        if (room.players.length < 1) return { success: false, message: '人數不足' };
+        
         const updatedRoom = await this.service.startGame(roomCode);
-        if (!updatedRoom) {
-            return {
-                success: false,
-                message: '開始遊戲失敗',
-                errorType: 'badRequest'
-            };
+        return { success: true, room: updatedRoom };
+    }
+
+    /**
+     * 處理玩家投票
+     * Event: "vote:submit"
+     * Data: { optionId: string }
+     */
+    public submitVote = async (socket: Socket, io: Server, data: { optionId: string }) => {
+        try {
+            if (!data || !data.optionId) {
+                SocketHelper.sendError(socket, "vote:error", "無效選項");
+                return;
+            }
+            const room = await this.service.findRoomBySocketId(socket.id);
+            if (!room) {
+                SocketHelper.sendError(socket, "vote:error", "不在房間內");
+                return;
+            }
+            if (room.hostId === socket.id) {
+                SocketHelper.sendError(socket, "vote:error", "房主不可投票");
+                return;
+            }
+
+            const updatedRoom = await this.service.submitVote(room.code.toString(), socket.id, data.optionId);
+            
+            if (updatedRoom) {
+                SocketHelper.send(socket, "vote:success", { optionId: data.optionId }, "投票成功");
+                
+                const totalVoters = updatedRoom.players.length;
+                const currentVoteCount = updatedRoom.currentVotes ? updatedRoom.currentVotes.size : 0;
+
+                if (currentVoteCount >= totalVoters) {
+                    await this._calculateAndBroadcastResult(updatedRoom, io);
+                }
+            }
+        } catch (error: any) {
+            SocketHelper.sendError(socket, "vote:error", "投票失敗");
+        }
+    }
+
+    /**
+     * 投票時間結束，結算結果
+     * Event: "vote:end"
+     */
+    public endVoting = async (socket: Socket, io: Server) => {
+        try {
+            const room = await this.service.findRoomBySocketId(socket.id);
+            if (!room) return;
+
+            if (room.hostId !== socket.id) {
+                SocketHelper.sendError(socket, "vote:error", "只有房主可以強制結算投票");
+                return;
+            }
+
+            await this._calculateAndBroadcastResult(room, io);
+
+        } catch (error: any) {
+            logger.error(`[Controller] endVoting error:`, error);
+            SocketHelper.sendError(socket, "vote:error", "結算投票失敗");
+        }
+    }
+
+    /**
+     * 計算票數並廣播結果
+     * @private
+     */
+    private _calculateAndBroadcastResult = async (room: Room, io: Server) => {
+        const votes = room.currentVotes; // Map<playerId, optionId>
+        const voteCounts: Record<string, number> = {};
+
+        if (votes && votes.size > 0) {
+            for (const optionId of votes.values()) {
+                voteCounts[optionId] = (voteCounts[optionId] || 0) + 1;
+            }
         }
 
-        return {
-            success: true,
-            room: updatedRoom
-        };
+        let winningOptionId: string | null = null;
+        let maxVotes = -1;
+
+        const optionIds = Object.keys(voteCounts);
+        if (optionIds.length > 0) {
+            for (const optId of optionIds) {
+                if (voteCounts[optId] > maxVotes) {
+                    maxVotes = voteCounts[optId];
+                    winningOptionId = optId;
+                } else if (voteCounts[optId] === maxVotes) {
+                    if (Math.random() > 0.5) {
+                        winningOptionId = optId;
+                    }
+                }
+            }
+        } else {
+            // 無人投票 隨機選
+            if (room.currentScenarioId) {
+                const currentScenario = await this.scenarioService.getNextScenarioById(room.currentScenarioId);
+                if (currentScenario && currentScenario.options.length > 0) {
+                        const randomIdx = Math.floor(Math.random() * currentScenario.options.length);
+                        winningOptionId = currentScenario.options[randomIdx].optionId;
+                }
+            }
+        }
+
+        if (!winningOptionId) {
+            logger.error(`[Vote] Could not determine winning option for room ${room.code}`);
+            return;
+        }
+
+        // 查詢下一關
+        if (!room.currentScenarioId) return;
+        const currentScenario = await this.scenarioService.getNextScenarioById(room.currentScenarioId);
+        if (!currentScenario) return;
+
+        const selectedOption = currentScenario.options.find(opt => opt.optionId === winningOptionId);
+        const nextScenarioId = selectedOption ? selectedOption.nextScenarioId : null;
+
+        // 清除投票
+        await this.service.concludeVoting(room.code.toString(), nextScenarioId);
+
+        // 廣播結果
+        SocketHelper.ioEmit(io, room.code.toString(), "vote:result", {
+            winningOptionId: winningOptionId,
+            voteCounts: voteCounts,
+            nextScenarioId: nextScenarioId,
+            consequence: selectedOption?.consequence || "無後果描述"
+        });
     }
 }

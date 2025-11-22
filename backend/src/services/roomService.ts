@@ -46,12 +46,10 @@ export class RoomService extends BaseService<Room> {
         return await this.repository.findRoomBySocketId(socketId);
     }
 
-    public async addPlayer(roomCode: string, playerId: string): Promise<Room | null> {
+    public async addPlayer(roomCode: string, playerId: string, name: string, avatar: string): Promise<Room | null> {
         const codeNumber = Number(roomCode);
-        if (isNaN(codeNumber) || !roomCode || roomCode.trim().length === 0) {
-            return null;
-        }
-        return await this.repository.addPlayer(codeNumber, playerId);
+        if (isNaN(codeNumber) || !roomCode) return null;
+        return await this.repository.addPlayer(codeNumber, playerId, name, avatar);
     }
 
     public async removePlayer(roomCode: string, playerId: string): Promise<Room | null> {
@@ -60,5 +58,25 @@ export class RoomService extends BaseService<Room> {
 
     public async startGame(roomCode: string): Promise<Room | null> {
         return await this.repository.startGame(Number(roomCode));
+    }
+
+    public async submitVote(roomCode: string, playerId: string, optionId: string): Promise<Room | null> {
+        const codeNumber = Number(roomCode);
+        if (isNaN(codeNumber)) return null;
+
+        return await this.repository.submitVote(codeNumber, playerId, optionId);
+    }
+
+    public async updateCurrentScenario(roomCode: string, scenarioId: string): Promise<Room | null> {
+        const codeNumber = Number(roomCode);
+        if (isNaN(codeNumber)) return null;
+        
+        return await this.repository.updateCurrentScenario(codeNumber, scenarioId);
+    }
+
+    public async concludeVoting(roomCode: string, nextScenarioId: string | null): Promise<Room | null> {
+        const codeNumber = Number(roomCode);
+        if (isNaN(codeNumber)) return null;
+        return await this.repository.clearVotesAndSetScenario(codeNumber, nextScenarioId);
     }
 }
