@@ -46,12 +46,10 @@ export class RoomService extends BaseService<Room> {
         return await this.repository.findRoomBySocketId(socketId);
     }
 
-    public async addPlayer(roomCode: string, playerId: string): Promise<Room | null> {
+    public async addPlayer(roomCode: string, playerId: string, name: string, avatar: string): Promise<Room | null> {
         const codeNumber = Number(roomCode);
-        if (isNaN(codeNumber) || !roomCode || roomCode.trim().length === 0) {
-            return null;
-        }
-        return await this.repository.addPlayer(codeNumber, playerId);
+        if (isNaN(codeNumber) || !roomCode) return null;
+        return await this.repository.addPlayer(codeNumber, playerId, name, avatar);
     }
 
     public async removePlayer(roomCode: string, playerId: string): Promise<Room | null> {

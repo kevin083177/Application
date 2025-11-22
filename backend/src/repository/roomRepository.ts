@@ -89,12 +89,12 @@ export class RoomRepository extends BaseRepository<Room> {
         const room: Partial<Room> = {
             code: roomCode,
             hostId: hostId,
-            players: [hostId],
+            players: [], 
             status: 'waiting',
-            currentScenarioId: null
+            currentScenarioId: null,
+            currentVotes: new Map()
         }
         const newRoom = await this.create(room);
-
         logger.info(`[Repository] Room created with code: ${roomCode} by host: ${hostId}`);
         return newRoom;
     }
@@ -125,7 +125,7 @@ export class RoomRepository extends BaseRepository<Room> {
         return await this.findOne({
             $or: [
                 { hostId: socketId },
-                { players: socketId }
+                { "players.id": socketId }
             ]
         });
     }
@@ -145,11 +145,12 @@ export class RoomRepository extends BaseRepository<Room> {
      * @param {string} playerId - 玩家的 Socket ID
      * @returns {Promise<Room | null>} 更新後的房間或 null
      */
-    public async addPlayer(roomCode: number, playerId: string): Promise<Room | null> {
+    public async addPlayer(roomCode: number, playerId: string, name: string, avatar: string): Promise<Room | null> {
+        const newPlayer = { id: playerId, name, avatar };
         return await this.model.findOneAndUpdate(
-            { code: roomCode, status: 'waiting' }, // 確保遊戲未開始
-            { $addToSet: { players: playerId } },   // 使用 $addToSet 避免重複加入
-            { new: true }                           // 返回更新後的文檔
+            { code: roomCode, status: 'waiting' },
+            { $push: { players: newPlayer } },
+            { new: true }
         ).exec();
     }
 
@@ -160,15 +161,15 @@ export class RoomRepository extends BaseRepository<Room> {
      * @returns {Promise<Room | null>} 更新後的房間或 null
      */
     public async removePlayer(roomCode: number, playerId: string): Promise<Room | null> {
-        const updatedRoom = await this.updateByCode(
-            roomCode,
-            { $pull: { players: playerId } }
-        );
+        const updatedRoom = await this.model.findOneAndUpdate(
+            { code: roomCode },
+            { $pull: { players: { id: playerId } } },
+            { new: true }
+        ).exec();
 
         if (updatedRoom) {
             logger.info(`[Repository] Player ${playerId} left room ${roomCode}`);
         }
-
         return updatedRoom;
     }
 
@@ -199,7 +200,7 @@ export class RoomRepository extends BaseRepository<Room> {
         return await this.exists({
             $or: [
                 { hostId: socketId },
-                { players: socketId }
+                { "players.id": socketId }
             ]
         });
     }

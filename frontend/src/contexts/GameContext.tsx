@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSocket } from './SocketContext';
 import type { Room } from '../interfaces/Room';
@@ -65,7 +65,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     const handleScenarioUpdate = (response: any) => {
         if (response.success) {
             setCurrentScenario(response.body);
-            setVoteResult(null); // 清除上一輪的投票結果
+            setVoteResult(null);
         }
     };
 

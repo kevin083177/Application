@@ -15,8 +15,7 @@ export default function Lobby() {
 
   if (!room) return null;
 
-  // 過濾出除了房主以外的玩家
-  const otherPlayers = room.players.filter(pid => pid !== room.hostId);
+  const players = room.players;
 
   return (
     <div className="lobby-container">
@@ -31,30 +30,30 @@ export default function Lobby() {
 
       <div className="players-grid">
         {/* 顯示玩家 */}
-        {otherPlayers.map((pid, index) => (
-            <div key={pid} className="player-card">
-                <div className="player-avatar">👤</div>
+        {players.map((player) => (
+            <div key={player.id} className="player-card">
+                <div className="player-avatar">{player.avatar}</div>
                 <div className="player-info">
-                    <span className="player-name">Player {index + 1}</span>
-                    <span className="player-id">{pid.slice(0, 4)}</span>
+                    <span className="player-name">{player.name}</span>
+                    <span className="player-id">{player.id}</span>
                 </div>
             </div>
         ))}
       </div>
 
-      {otherPlayers.length === 0 && (
+      {players.length === 0 && (
         <div className="waiting-state">
             等待其他玩家加入...
         </div>
       )}
 
-      {/* 底部開始按鈕區 */}
+      {/* 開始按鈕 */}
       <div style={{ marginTop: 'auto', marginBottom: '20px' }}>
           {isHost && (
               <button 
                   className="start-btn"
                   onClick={startGame}
-                  disabled={otherPlayers.length === 0}
+                  disabled={players.length === 0}
               >
                   開始遊戲
               </button>

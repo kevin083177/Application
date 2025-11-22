@@ -15,7 +15,7 @@ export const registerSocketHandlers = (io: Server) => {
         );
 
         socket.on('room:join', (data) =>
-            createSocketHandler((s, i) => roomController.joinRoom(s, i, data.roomCode))(socket, io)
+            createSocketHandler((s, i) => roomController.joinRoom(s, i, data))(socket, io)
         );
 
         socket.on('game:start', () => {

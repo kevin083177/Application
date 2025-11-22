@@ -1,5 +1,6 @@
 import { model, Schema } from 'mongoose';
 import { Room } from '../interfaces/room';
+import { playerSchema } from './playerSchema';
 
 const roomSchema = new Schema<Room>({
     code: {
@@ -13,7 +14,7 @@ const roomSchema = new Schema<Room>({
         required: true
     },
     players: {
-        type: [String], default: []
+        type: [playerSchema], default: []
     },
     status: {
         type: String,
