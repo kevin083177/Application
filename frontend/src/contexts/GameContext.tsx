@@ -73,8 +73,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
             setCurrentScenario(null);
             setVoteResult(null);
             setRoom(response.body.room);
-            
-            showSuccess('遊戲已重新開始，回到大廳');
             navigate(`/lobby/${response.body.room.code}`);
         }
     });
@@ -96,7 +94,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     });
 
     socket.on('room:closed', () => {
-        showSuccess('房間已關閉');
         setRoom(null);
         setCurrentScenario(null);
         setVoteResult(null);

@@ -18,8 +18,8 @@ export default function Lobby() {
 
   if (!room) return null;
 
-  const players = room.players;
-
+  const displayPlayers = [...(room.players || [])];
+  
   const handleKickPlayer = (targetId: string) => {
     if (!socket) return;
     socket.emit('player:kick', { targetPlayerId: targetId });
@@ -37,8 +37,9 @@ export default function Lobby() {
         <div className="room-code-display">{room.code}</div>
       </div>
 
-      <div className="player-grid">
-        {room.players.map((p) => (
+      {displayPlayers.length > 0 && (
+        <div className="players-grid">
+        {displayPlayers.map((p) => (
           <div key={p.id} className="player-card">
             
             {socket && room.hostId === socket.id && p.id !== socket.id && (
@@ -59,21 +60,21 @@ export default function Lobby() {
           </div>
         ))}
       </div>
+      )}
 
-      {players.length === 0 && (
+      {displayPlayers.length === 0 && (
         <div className="waiting-state">
             <div className="loading-spinner"></div>
             <span>等待其他玩家加入</span>
         </div>
       )}
 
-      {/* 開始按鈕 */}
       <div style={{ marginTop: 'auto', marginBottom: '20px' }}>
           {isHost && (
               <button 
                   className="start-btn"
                   onClick={startGame}
-                  disabled={players.length === 0}
+                  disabled={room.players.length === 0}
               >
                   開始遊戲
               </button>

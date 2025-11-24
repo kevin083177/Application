@@ -7,7 +7,8 @@ export default function GameOver() {
   return (
     <div className="result-container">
       <h1>遊戲結束</h1>
-
+      <p>感謝你的遊玩</p>
+      
       <div className="button-group">
         {isHost && (
           <>
