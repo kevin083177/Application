@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../contexts/GameContext';
+import { BsFillDoorOpenFill } from "react-icons/bs";
 import './styles/Lobby.css';
 
 export default function Lobby() {
@@ -20,6 +21,7 @@ export default function Lobby() {
   return (
     <div className="lobby-container">
       <button className="leave-btn" onClick={leaveRoom}>
+        <BsFillDoorOpenFill size={18} /> 
         離開
       </button>
 
@@ -43,7 +45,8 @@ export default function Lobby() {
 
       {players.length === 0 && (
         <div className="waiting-state">
-            等待其他玩家加入...
+            <div className="loading-spinner"></div>
+            <span>等待其他玩家加入</span>
         </div>
       )}
 
