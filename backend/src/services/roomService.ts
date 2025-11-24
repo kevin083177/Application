@@ -79,4 +79,31 @@ export class RoomService extends BaseService<Room> {
         if (isNaN(codeNumber)) return null;
         return await this.repository.clearVotesAndSetScenario(codeNumber, nextScenarioId);
     }
+
+    public async resetRoom(roomCode: string): Promise<Room | null> {
+        return await this.repository.resetRoom(roomCode);
+    }
+
+    /**
+     * 房主踢人邏輯
+     * @param hostId 發起請求的 Socket ID (必須是房主)
+     * @param targetPlayerId 被踢的 Socket ID
+     */
+    public async kickPlayer(hostId: string, targetPlayerId: string): Promise<{ room: Room, kickedPlayerId: string } | null> {
+        const room = await this.repository.findRoomByHostId(hostId);
+        if (!room) {
+            throw new Error("只有房主有權限踢人，或房間不存在");
+        }
+
+        const playerExists = room.players.some(p => p.id === targetPlayerId);
+        if (!playerExists) {
+            throw new Error("目標玩家不在房間內");
+        }
+
+        const updatedRoom = await this.repository.removePlayer(room.code, targetPlayerId);
+        
+        if (!updatedRoom) return null;
+
+        return { room: updatedRoom, kickedPlayerId: targetPlayerId };
+    }
 }

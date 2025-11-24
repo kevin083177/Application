@@ -4,6 +4,7 @@ import { useSocket } from './SocketContext';
 import type { Room } from '../interfaces/Room';
 import type { Scenario } from '../interfaces/Scenario';
 import type { VoteResult } from '../interfaces/Vote';
+import { useNotification } from './NotificationContext';
 
 interface IGameContext {
   room: Room | null;
@@ -13,8 +14,9 @@ interface IGameContext {
   createRoom: () => void;
   leaveRoom: () => void;
   startGame: () => void;
-  submitVote: (optionId: string) => void; // 預留給玩家端
-  endVoting: () => void; // 房主觸發結算
+  restartGame: () => void;
+  submitVote: (optionId: string) => void;
+  endVoting: () => void;
   fetchNextScenario: (nextId: string) => void;
 }
 
@@ -25,12 +27,17 @@ export const useGame = () => useContext(GameContext);
 export const GameProvider = ({ children }: { children: ReactNode }) => {
   const { socket } = useSocket();
   const navigate = useNavigate();
+  const { showSuccess, showError } = useNotification();
   
   const [room, setRoom] = useState<Room | null>(null);
   const [currentScenario, setCurrentScenario] = useState<Scenario | null>(null);
   const [voteResult, setVoteResult] = useState<VoteResult | null>(null);
 
   const isHost = socket && room ? socket.id === room.hostId : false;
+
+  const restartGame = () => {
+      if (isHost) socket?.emit('game:restart');
+  };
 
   useEffect(() => {
     if (!socket) return;
@@ -61,7 +68,15 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         }
     });
 
-    // 遊戲開始或進入下一關時收到
+    socket.on('game:restarted', (response) => {
+        if (response.success) {
+            setCurrentScenario(null);
+            setVoteResult(null);
+            setRoom(response.body.room);
+            navigate(`/lobby/${response.body.room.code}`);
+        }
+    });
+
     const handleScenarioUpdate = (response: any) => {
         if (response.success) {
             setCurrentScenario(response.body);
@@ -79,10 +94,14 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     });
 
     socket.on('room:closed', () => {
-        alert('房間已關閉');
         setRoom(null);
         setCurrentScenario(null);
+        setVoteResult(null);
         navigate('/');
+    });
+    
+    socket.on('room:error', (response) => {
+        showError(response.message);
     });
 
     return () => {
@@ -94,16 +113,21 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       socket.off('scenario:first');
       socket.off('scenario:next');
       socket.off('vote:result');
+      socket.off('game:restarted');
+      socket.off('room:error');
     };
-  }, [socket, navigate]);
+  }, [socket, navigate, showSuccess, showError]);
 
   const createRoom = () => socket?.emit('room:create');
   
   const leaveRoom = () => {
     if (socket) {
         socket.emit('room:leave');
+        
         setRoom(null);
         setCurrentScenario(null);
+        setVoteResult(null);
+        
         navigate('/');
     }
   };
@@ -131,6 +155,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         createRoom, 
         leaveRoom, 
         startGame,
+        restartGame,
         submitVote,
         endVoting,
         fetchNextScenario

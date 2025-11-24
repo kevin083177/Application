@@ -16,10 +16,6 @@ export class RoomController {
         this.io = io;
     }
 
-    /**
-     * 建立房間
-     * Event: "room:create"
-     */
     public createRoom = async (socket: Socket, io: Server) => {
         try {
             const isInRoom = await this.service.isSocketInRoom(socket.id);
@@ -45,10 +41,6 @@ export class RoomController {
         }
     }
 
-    /**
-     * 加入房間
-     * Data: { roomCode: string, name: string, avatar: string }
-     */
     public joinRoom = async (socket: Socket, io: Server, data: { roomCode: string, name: string, avatar: string }) => {
         try {
             if (!data || !data.roomCode || !data.name || !data.avatar) {
@@ -80,10 +72,6 @@ export class RoomController {
         }
     }
 
-    /**
-     * 開始遊戲
-     * Event: "game:start"
-     */
     public startGame = async (socket: Socket, io: Server) => {
         try {
             const room = await this.service.findRoomBySocketId(socket.id);
@@ -110,39 +98,30 @@ export class RoomController {
     }
 
     /**
-     * 處理斷線
+     * 處理意外斷線
      * Event: "disconnect"
      */
     public handleDisconnect = async (socket: Socket, io: Server) => {
         try {
             const room = await this.service.findRoomBySocketId(socket.id);
-            if (!room) {
-                return;
-            }
+            if (!room) return;
 
             const roomCode = room.code.toString();
 
             if (room.hostId === socket.id) {
                 // 房主離線，解散房間
                 await this.service.deleteRoom(roomCode);
-
                 SocketHelper.ioEmit(io, roomCode, "room:closed", null, "房主已離線，房間已解散");
-
                 logger.info(`[Controller] Room ${roomCode} closed (host disconnected)`);
             } else {
-                // 玩家離線，移除玩家
+                // 玩家離線
                 const updatedRoom = await this.service.removePlayer(roomCode, socket.id);
-
                 SocketHelper.ioEmit(io, roomCode, "player:left", {
                     playerId: socket.id,
                     players: updatedRoom?.players || []
                 }, "玩家已離開");
-
-                logger.info(`[Controller] Player ${socket.id} left room ${roomCode}`);
+                logger.info(`[Controller] Player ${socket.id} disconnected from room ${roomCode}`);
             }
-
-            // 離開 Socket.IO 房間
-            socket.leave(roomCode);
         } catch (error: any) {
             logger.error(`[Controller] handleDisconnect error:`, error);
         }
@@ -153,13 +132,41 @@ export class RoomController {
      * Event: "room:leave"
      */
     public leaveRoom = async (socket: Socket, io: Server) => {
-        await this.handleDisconnect(socket, io);
+        try {
+            const room = await this.service.findRoomBySocketId(socket.id);
+            if (!room) {
+                 return; 
+            }
+
+            const roomCode = room.code.toString();
+
+            if (room.hostId === socket.id) {
+                // 房主主動解散房間
+                await this.service.deleteRoom(roomCode);
+                SocketHelper.ioEmit(io, roomCode, "room:closed", null, "房主解散了房間");
+                logger.info(`[Controller] Room ${roomCode} disbanded by host`);
+            } else {
+                // 玩家主動離開
+                const updatedRoom = await this.service.removePlayer(roomCode, socket.id);
+                
+                // 通知房間內其他人
+                SocketHelper.ioEmit(io, roomCode, "player:left", {
+                    playerId: socket.id,
+                    players: updatedRoom?.players || []
+                }, "玩家已離開");
+                
+                logger.info(`[Controller] Player ${socket.id} left room ${roomCode} voluntarily`);
+            }
+
+            socket.leave(roomCode);
+            
+            SocketHelper.send(socket, "room:left", { success: true }, "已離開房間");
+
+        } catch (error: any) {
+            logger.error(`[Controller] leaveRoom error:`, error);
+        }
     }
 
-    /**
-     * 加入房間的驗證邏輯
-     * @private
-     */
     private async _joinRoomLogic(roomCode: string, playerId: string, name: string, avatar: string) {
         try {
             if (!roomCode) return { success: false, message: '無效房號' };
@@ -182,10 +189,6 @@ export class RoomController {
         }
     }
 
-    /**
-     * 開始遊戲的驗證邏輯
-     * @private
-     */
     private async _startGameLogic(roomCode: string, hostId: string) {
         const room = await this.service.getRoom(roomCode);
         if (!room) return { success: false, message: '房間不存在' };
@@ -196,11 +199,6 @@ export class RoomController {
         return { success: true, room: updatedRoom };
     }
 
-    /**
-     * 處理玩家投票
-     * Event: "vote:submit"
-     * Data: { optionId: string }
-     */
     public submitVote = async (socket: Socket, io: Server, data: { optionId: string }) => {
         try {
             if (!data || !data.optionId) {
@@ -234,10 +232,6 @@ export class RoomController {
         }
     }
 
-    /**
-     * 投票時間結束，結算結果
-     * Event: "vote:end"
-     */
     public endVoting = async (socket: Socket, io: Server) => {
         try {
             const room = await this.service.findRoomBySocketId(socket.id);
@@ -256,10 +250,6 @@ export class RoomController {
         }
     }
 
-    /**
-     * 計算票數並廣播結果
-     * @private
-     */
     private _calculateAndBroadcastResult = async (room: Room, io: Server) => {
         const votes = room.currentVotes; // Map<playerId, optionId>
         const voteCounts: Record<string, number> = {};
@@ -319,5 +309,77 @@ export class RoomController {
             nextScenarioId: nextScenarioId,
             consequence: selectedOption?.consequence || "無後果描述"
         });
+    }
+
+    /**
+     * 重新開始遊戲 (回到 Lobby)
+     * Event: "game:restart"
+     */
+    public restartGame = async (socket: Socket, io: Server) => {
+        try {
+            const room = await this.service.findRoomBySocketId(socket.id);
+            if (!room) return;
+
+            if (room.hostId !== socket.id) {
+                SocketHelper.sendError(socket, "room:error", "只有房主可以重新開始遊戲");
+                return;
+            }
+
+            const updatedRoom = await this.service.resetRoom(room.code.toString());
+            
+            if (updatedRoom) {
+                SocketHelper.ioEmit(io, room.code.toString(), "game:restarted", {
+                    room: updatedRoom
+                }, "遊戲已重新開始，回到大廳");
+                
+                logger.info(`[Controller] Room ${room.code} restarted by host, returning to lobby`);
+            }
+        } catch (error: any) {
+            SocketHelper.sendError(socket, "room:error", "重置遊戲失敗");
+            logger.error(`[Controller] restartGame error:`, error);
+        }
+    }
+
+    /**
+     * 房主踢人
+     * Event: "player:kicked", "player:left"
+     */
+    public kickPlayer = async (socket: Socket, io: Server, data: { targetPlayerId: string }) => {
+        try {
+            if (!data || !data.targetPlayerId) {
+                SocketHelper.sendError(socket, "room:error", "缺少目標玩家 ID");
+                return;
+            }
+
+            const result = await this.service.kickPlayer(socket.id, data.targetPlayerId);
+
+            if (!result) {
+                SocketHelper.sendError(socket, "room:error", "踢除失敗");
+                return;
+            }
+
+            const { room, kickedPlayerId } = result;
+            const roomCode = room.code.toString();
+
+            io.to(kickedPlayerId).emit("player:kicked", { 
+                reason: "你已被房主移出房間" 
+            });
+
+            const kickedSocket = io.sockets.sockets.get(kickedPlayerId);
+            if (kickedSocket) {
+                kickedSocket.leave(roomCode);
+            }
+
+            SocketHelper.ioEmit(io, roomCode, "player:left", {
+                playerId: kickedPlayerId,
+                players: room.players
+            });
+
+            logger.info(`[Controller] Host ${socket.id} kicked player ${kickedPlayerId} from room ${roomCode}`);
+
+        } catch (error: any) {
+            SocketHelper.sendError(socket, "room:error", error.message || "踢人失敗");
+            logger.error(`[Controller] kickPlayer error:`, error);
+        }
     }
 }
