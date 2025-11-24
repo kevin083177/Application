@@ -339,4 +339,47 @@ export class RoomController {
             logger.error(`[Controller] restartGame error:`, error);
         }
     }
+
+    /**
+     * 房主踢人
+     * Event: "player:kicked", "player:left"
+     */
+    public kickPlayer = async (socket: Socket, io: Server, data: { targetPlayerId: string }) => {
+        try {
+            if (!data || !data.targetPlayerId) {
+                SocketHelper.sendError(socket, "room:error", "缺少目標玩家 ID");
+                return;
+            }
+
+            const result = await this.service.kickPlayer(socket.id, data.targetPlayerId);
+
+            if (!result) {
+                SocketHelper.sendError(socket, "room:error", "踢除失敗");
+                return;
+            }
+
+            const { room, kickedPlayerId } = result;
+            const roomCode = room.code.toString();
+
+            io.to(kickedPlayerId).emit("player:kicked", { 
+                reason: "你已被房主移出房間" 
+            });
+
+            const kickedSocket = io.sockets.sockets.get(kickedPlayerId);
+            if (kickedSocket) {
+                kickedSocket.leave(roomCode);
+            }
+
+            SocketHelper.ioEmit(io, roomCode, "player:left", {
+                playerId: kickedPlayerId,
+                players: room.players
+            });
+
+            logger.info(`[Controller] Host ${socket.id} kicked player ${kickedPlayerId} from room ${roomCode}`);
+
+        } catch (error: any) {
+            SocketHelper.sendError(socket, "room:error", error.message || "踢人失敗");
+            logger.error(`[Controller] kickPlayer error:`, error);
+        }
+    }
 }

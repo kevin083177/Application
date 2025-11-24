@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../contexts/GameContext';
-import { BsFillDoorOpenFill } from "react-icons/bs";
+import { BsFillDoorOpenFill, BsX } from "react-icons/bs";
 import './styles/Lobby.css';
+import { useSocket } from '../contexts/SocketContext';
 
 export default function Lobby() {
   const { room, leaveRoom, startGame, isHost } = useGame();
+  const { socket } = useSocket();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -17,6 +19,11 @@ export default function Lobby() {
   if (!room) return null;
 
   const players = room.players;
+
+  const handleKickPlayer = (targetId: string) => {
+    if (!socket) return;
+    socket.emit('player:kick', { targetPlayerId: targetId });
+  };
 
   return (
     <div className="lobby-container">
@@ -30,16 +37,26 @@ export default function Lobby() {
         <div className="room-code-display">{room.code}</div>
       </div>
 
-      <div className="players-grid">
-        {/* 顯示玩家 */}
-        {players.map((player) => (
-            <div key={player.id} className="player-card">
-                <div className="player-avatar">{player.avatar}</div>
-                <div className="player-info">
-                    <span className="player-name">{player.name}</span>
-                    <span className="player-id">{player.id}</span>
-                </div>
-            </div>
+      <div className="player-grid">
+        {room.players.map((p) => (
+          <div key={p.id} className="player-card">
+            
+            {socket && room.hostId === socket.id && p.id !== socket.id && (
+              <button 
+                className="kick-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleKickPlayer(p.id);
+                }}
+              >
+                <BsX size={24} />
+              </button>
+            )}
+
+            <div className="player-avatar">{p.avatar}</div>
+            <div className="player-name">{p.name}</div>
+            <span className="player-id">{p.id}</span>
+          </div>
         ))}
       </div>
 

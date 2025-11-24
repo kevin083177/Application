@@ -48,6 +48,12 @@ export const registerSocketHandlers = (io: Server) => {
             createSocketHandler(roomController.endVoting)(socket, io)
         );
 
-        socket.on("game:restart", () => createSocketHandler(roomController.restartGame)(socket, io));
+        socket.on("game:restart", () => 
+            createSocketHandler(roomController.restartGame)(socket, io)
+        );
+
+        socket.on('player:kick', (data) => 
+            createSocketHandler((s, i) => roomController.kickPlayer(s, i, data))(socket, io)
+        );
     });
 };
