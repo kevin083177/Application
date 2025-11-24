@@ -290,4 +290,19 @@ export class RoomRepository extends BaseRepository<Room> {
             { new: true }
         ).exec();
     }
+
+    public async resetRoom(roomCode: string): Promise<Room | null> {
+        return await this.model.findOneAndUpdate(
+            { code: roomCode },
+            {
+                $set: {
+                    status: 'waiting',
+                    currentScenarioId: null,
+                    currentVotes: new Map(),
+                    updatedAt: new Date()
+                }
+            },
+            { new: true }
+        );
+    }
 }

@@ -7,6 +7,7 @@ import { ScenarioController } from '../../controllers/scenarioController';
 export const registerSocketHandlers = (io: Server) => {
     const roomController = new RoomController(io);
     const scenarioController = new ScenarioController(io);
+    
     io.on('connection', (socket: Socket) => {
         logger.info(`Socket connected: ${socket.id}`);
 
@@ -31,12 +32,12 @@ export const registerSocketHandlers = (io: Server) => {
             createSocketHandler((s, i) => scenarioController.getNextScenarioById(s, data.nextScenarioId))(socket, io)
         );
         
-        socket.on('room:disconnect', () => {
-            createSocketHandler(roomController.handleDisconnect)(socket, io);
+        socket.on('disconnect', () => {
+            roomController.handleDisconnect(socket, io); 
         });
 
         socket.on('room:leave', () => {
-            createSocketHandler(roomController.handleDisconnect)(socket, io);
+            createSocketHandler(roomController.leaveRoom)(socket, io);
         });
 
         socket.on('vote:submit', (data) => 
@@ -46,5 +47,7 @@ export const registerSocketHandlers = (io: Server) => {
         socket.on('vote:end', () => 
             createSocketHandler(roomController.endVoting)(socket, io)
         );
+
+        socket.on("game:restart", () => createSocketHandler(roomController.restartGame)(socket, io));
     });
 };

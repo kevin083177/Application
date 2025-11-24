@@ -79,4 +79,8 @@ export class RoomService extends BaseService<Room> {
         if (isNaN(codeNumber)) return null;
         return await this.repository.clearVotesAndSetScenario(codeNumber, nextScenarioId);
     }
+
+    public async resetRoom(roomCode: string): Promise<Room | null> {
+        return await this.repository.resetRoom(roomCode);
+    }
 }
