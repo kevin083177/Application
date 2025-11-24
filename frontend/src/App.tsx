@@ -4,10 +4,10 @@ import { GameProvider } from './contexts/GameContext';
 import Home from './pages/Home';
 import Lobby from './pages/Lobby';
 import Game from './pages/Game';
+import GameOver from './pages/Gameover';
 import TrolleyMoveDemo from './pages/test';
 import './App.css';
 import { NotificationProvider } from './contexts/NotificationContext';
-import GameOver from './pages/GameOver';
 
 export default function App() {
   return (
