@@ -9,6 +9,7 @@ export interface Scenario {
 export interface ScenarioOption {
   optionId: string;
   text: string;
+  sceneAssetUrl: string;
   consequence: string;
   nextScenarioId: string | null;
 }
